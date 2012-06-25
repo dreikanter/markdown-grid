@@ -1,22 +1,27 @@
+#!/usr/bin/env python
+
+"""Markdown Grid Extension demo"""
+
 import codecs
 import markdown
-# from pprint import pprint
 import mdx_grid
 
-text = ""
+def save(file_name, text):
+    with codecs.open(file_name, mode="w", encoding="utf8") as f:
+        f.write(text)
 
-with codecs.open("example.md", mode="r", encoding="utf8") as source:
-    text = source.read()
+def load(file_name):
+    with codecs.open(file_name, mode="r", encoding="utf8") as f:
+        return f.read()
 
-configs = {}
-gridext = mdx_grid.GridExtension(configs=configs)
+text = load("example.md")
+
+# Case #1: Using existing extension instance with custom configuration
+conf = {}
+gridext = mdx_grid.GridExtension(configs=conf)
 md = markdown.Markdown(extensions=[gridext])
-html = md.convert(text)
-with codecs.open("example_custom.html", mode="w", encoding="utf8") as destination:
-    destination.write(html)
+save("example_custom.html", md.convert(text))
 
+# Case #2: Adding extension by name
 md = markdown.Markdown(extensions=['grid'])
-with codecs.open("example_defaults.html", mode="w", encoding="utf8") as destination:
-    destination.write(html)
-
-# print(html)
+save("example_defaults.html", md.convert(text))
