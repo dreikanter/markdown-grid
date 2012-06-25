@@ -32,28 +32,56 @@ class GridTags:
     CELL_START = 2
     CELL_END = 3
 
+    @staticmethod
+    def get_name(tag_type):
+        if tag_type == ROW_START:
+            return "md:row"
+
+        elif tag_type == ROW_END:
+            return "md:endrow"
+
+        elif tag_type == CELL_START:
+            return "md:col"
+
+        elif tag_type == CELL_END:
+            return "md:endcol"
+
+        else:
+            # TODO: Use out-of-range exception class
+            raise Exception("Unknown tag type specified.")
+
 
 class RowStack:
-    """Stack for row items used to handle
-    nested row/cell containers processing."""
+    """Stack for row items used to handle nested row/cell containers."""
 
     class RowInfo:
-        def __init__(self, line_num, widths):
+        """Text column collection representation. Each column could
+        have width and offset."""
+
+        def __init__(self, line_num, params_str):
             """Initializes class instance with row starting tag 
             line number and a list of cell widths."""
 
-            #  TODO
-            self.line_num = 0
-            self._widths = widths
+            self.line_num = line_num
+            parse_param_str(params_str)
             self._cur_cell_index = 0
-            return
 
-        def get_next_cell_width(self):
+        def parse_param_str(self, param_str):
+            """Parses row parameters string.
+            '1, 2:1, 2:1' => widths=[1, 2, 2], offsets=[0, 1, 1] """
+
+            # TODO
+            self._widths = []
+            self._offsets = []
+
+        def get_next_cell(self):
             """Enumerates through cell widths."""
-            # TODO: Range checking; return None if out of range
-            result = self._widths[self._cur_cell_index]
-            self._cur_cell_index = self._cur_cell_index + 1
-            return result
+            if self._cur_cell_index >= len(self._widths):
+                return None
+            else:
+                result = (self._widths[self._cur_cell_index], self._offsets[self._cur_cell_index])
+                self._cur_cell_index += 1
+                return result
 
         def add_cell_tag(self, line_num):
             """Adds cell starting tag line number."""
@@ -64,6 +92,10 @@ class RowStack:
             """Validates if cell widths are valid."""
             # TODO
             return
+
+        def get_grid_tag_params(self):
+            # TODO
+            return ""
 
 
     def __init__(self):
@@ -85,20 +117,50 @@ class RowStack:
 class TagsList:
     """Grid tags collection."""
 
-    class GridTagInfo:
-        def __init__(self, tag_type, span=0, offset=0):
+    class TagInfo:
+        def __init__(self, line_num, tag_type, span=0, offset=0):
+            self.line_num = line_num
             self.type = tag_type
             self.span = span
             self.offset = offset
 
-    # TODO: Implement enumeration
+        def get_formatted_params(self):
+            """Returns grid tag params as formatted string."""
+            if self.type == GridTags.CELL_START:
+                return str(span) + (":%d" % offset) if offset else "")
+            else:
+                return ""
+
+        def get_tag(self):
+            """Return grid tag."""
+            tag = GridTags.get_name(self.tag_type)
+            params = get_formatted_params()
+            return "<!--%s%s-->" % (tag, (" " + params) if params else "")
+
+    def __init__(self):
+        self._items = []
+        self._index = -1;
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self)
+
+    def next(self):
+        try:
+             result = self._items[self._index]
+             self._index += 1
+             return result
+
+         except IndexError:
+             raise StopIteration
 
     def append(self, line_num, tag_type, span=0, offset=0):
-        return
+        self._items.append(TagInfo(line_num, tag_type, span, offset))
 
-    def get_last_num():
-        # TODO
-        return None
+    def get_last_num(self):
+        return self._items[-1].line_num if self._items else None
 
 
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
@@ -149,7 +211,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 # TODO: Validate matches
                 row_stack.push(line_num, matches.groups(1))
                 tags.append(line_num, GridTags.ROW_START)
-                tags.append(ridTagInfo(line_num, GridTags.CELL_START, row_stack.get_last_num())
+                tags.append(line_num, GridTags.CELL_START, row_stack.get_last_num())
                 row_stack.add_cell_tag(tags.get_last_num())
 
             elif re_row_end.matches(line):
@@ -171,6 +233,9 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         # Populating lines with actual grid tags
         for tag in tags:
             lines[tag.line_num] = tag.get_tag()
+
+        # TODO: Close cells and rows if the stack is not empty
+        # lines.append(...)
 
         return lines
 
