@@ -19,11 +19,69 @@ Dependencies:
 
 """
 
+import re
 import markdown
 
 
+class GridRow:
+    def __init__(self, params):
+        self.widths = []
+        self.spans = []
+        self.cells = []
+
+    def add_cell(self, cell):
+        return
+
+
+# class GridCell:
+
+
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
+
+    flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
+    re_rowb = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=flags)
+    re_rowe = re.compile(r"^\s*--\s*end\s*--\s*$", flags=flags)
+    re_sep = re.compile(r"^\s*--\s*$", flags)
+
+    @staticmethod
+    def matches(re, text):
+        return re.match(text)
+
     def run(self, lines):
+        rows = []
+        cnt = 0
+        blockstack = []
+        blocks = []
+        # blocks[0] contains everything
+        # blockstack[-1] is current one
+        for line in lines:
+            if not cnt:
+                blockstack.append(GridRow())
+                blocks.append(blockstack[-1])
+            if row begin
+                blockstack.append(GridRow())
+
+
+
+        #     else
+        #         matches = re_rowb.match(line):
+        #         if matches:
+        #             matches.group(1)
+
+
+        #       if cur
+        #           cur. = new cell(widths)
+        #       cells += cur
+        #   elif (rowe or last_line) and (cur != none)
+        #       cur = null
+        #   elif sep
+        # 
+        #   else just text line
+        #       if cur
+        #           cur.lines += line
+        #       else
+        #           
+            # cnt = cnt + 1
         return [line.replace("<!--", "<!----") for line in lines]
 
 
