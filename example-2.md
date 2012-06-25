@@ -19,8 +19,6 @@ col 2 opening
 	col 1
 	---
 	col 2
-	---
-	col 3
 	-- end --
 
 col 2 ending
