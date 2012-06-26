@@ -47,7 +47,6 @@ class GridTags:
             return "endcol"
 
         else:
-            # TODO: Use out-of-range exception class
             raise Exception("Unknown tag type specified.")
 
 
@@ -102,6 +101,23 @@ class Parsers:
         return widths, offsets
 
 
+class Patterns:
+    """Common regular expressions."""
+
+    re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
+
+    # Extended Markdown syntax
+    row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
+    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
+    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
+
+    # Grid tags for postprocessor
+    rowtag_open = re.compile(r"^<!--\s*row\s*-->$", flags=re_flags)
+    rowtag_close = re.compile(r"^<!--\s*endrow\s*-->$", flags=re_flags)
+    coltag_open = re.compile(r"^<!--\s*col\s*\(([\d\s\:,]+)\)\s*-->$", flags=re_flags)
+    coltag_close = re.compile(r"^<!--\s*endcol\s*-->$", flags=re_flags)
+
+
 class RowStack:
     """Stack for row items used to handle nested row/col containers."""
 
@@ -114,7 +130,7 @@ class RowStack:
             line number and a list of column widths."""
 
             self.line_num = line_num
-            self._widths, self._offsets = Helpers.parse_param_str(params_str)
+            self._widths, self._offsets = Parsers.parse_param_str(params_str)
             self._cur_col_index = 0
 
         def get_next_col(self):
@@ -169,7 +185,7 @@ class TagsList:
         def get_formatted_params(self):
             """Returns grid tag params as formatted string."""
             if self.tag_type == GridTags.COL_OPEN:
-                return str(self.span) + (",%d" % self.offset) if self.offset else ""
+                return str(self.span) + ("," + str(self.offset)) if self.offset else ""
             else:
                 return ""
 
@@ -199,56 +215,14 @@ class TagsList:
             raise StopIteration
 
     def append(self, line_num, tag_type, span=0, offset=0):
-        self._items.append(TagInfo(tag_type, line_num, span, offset))
+        self._items.append(TagsList.TagInfo(tag_type, line_num, span, offset))
 
     def get_last_num(self):
         return self._items[-1].line_num if self._items else None
 
 
-class Patterns:
-    """Common regular expressions."""
-
-    re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
-
-    # Extended Markdown syntax
-    row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
-    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
-    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
-
-    # Grid tags for postprocessor
-    rowtag_open = re.compile(r"^<!--\s*row\s*-->$", flags=re_flags)
-    rowtag_close = re.compile(r"^<!--\s*endrow\s*-->$", flags=re_flags)
-    coltag_open = re.compile(r"^<!--\s*col\s*\(([\d\s\:,]+)\)\s*-->$", flags=re_flags)
-    coltag_close = re.compile(r"^<!--\s*endcol\s*-->$", flags=re_flags)
-
-
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
     """Markdown preprocessor."""
-
-    # TODO: Use better way to keep default tag values
-    # TODO: Override defaults with configuration
-    # tag_row_start_str = ""
-    # tag_row_end_str = ""
-    # tag_COL_OPEN_str = ""
-    # tag_COL_CLOSE_str = ""
-
-    # @staticmethod
-    # def parse_widths(widths_str):
-    #     """Parses string of comma-separated int values to a list."""
-    #     # TODO
-    #     widths = []
-    #     return widths
-
-    # @staticmethod
-    # def get_next_width(row_stack):
-    #     # TODO
-    #     return 1
-
-    # @staticmethod
-    # def get_tag(tag_type, span=None):
-    #     """Returns layout tag for specified tag an span (for columns)."""
-    #     # TODO
-    #     return ""
 
     def run(self, lines):
         tags = TagsList()
@@ -260,15 +234,23 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
             matches = Patterns.row_open.match(line)
             if matches:
-                # Got <row><col>
-                # TODO: Validate matches
-                row_stack.push(line_num, matches.groups(1))
+                # Got <row [params]><col>
+                # row_info = line_num, parse(row_parms)
+                # rows.push(row_info)
+                # rows.current.add_col(line_num)
+                # tags.append(line_num, row_open)
+                # tags.append(line_num, col_open)
+                row_stack.push(line_num, matches.group(0) if matches.groups() else None)
                 tags.append(line_num, GridTags.ROW_OPEN)
                 tags.append(line_num, GridTags.COL_OPEN, row_stack.get_last_num())
                 row_stack.add_col_tag(tags.get_last_num())
 
             elif Patterns.row_close.matches(line):
                 # Got </col></row>
+                # rows.current.populate_params - set span+offset for each col_open tag with line_num saved to the rows.current
+                # rows.pop
+                # tags.append(line_numm col_close)
+                # tags.append(line_numm row_close)
                 tags.append(line_num, GridTags.COL_CLOSE)
                 tags.append(line_num, GridTags.ROW_CLOSE)
                 row_stack.validate_widths(tags)
@@ -276,6 +258,9 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
             elif Patterns.col_sep.matches(line):
                 # Got </col><col>
+                # rows.current.add_col(line_num)
+                # tags.append(line_num, col_close)
+                # tags.append(line_num, col_open)
                 tags.append(line_num, GridTags.COL_CLOSE)
                 tags.append(line_num, GridTags.COL_OPEN, row_stack.get_last_num())
 

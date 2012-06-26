@@ -32,6 +32,22 @@ class GridPreprocessorTest(unittest.TestCase):
         matches = mdx_grid.Patterns.rowtag_close.match(tag)
         self.assertTrue(matches)
 
+    def test_cell_params_parsing(self):
+        test_values = [
+            [[0, 0], None],
+            [[1, 1], ('1,1',)],
+            [[123, 456], ('123,456',)],
+            [[-1, -2], None],
+            [["potatoes", "potatoes"], None],
+        ]
+
+        for value, result in test_values:
+            span, offset = value
+            tag = mdx_grid.TagsList.TagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand(), span, offset).get_tag()
+            matches = mdx_grid.Patterns.coltag_open.match(tag)
+            actualResult = matches.groups() if matches else None
+            self.assertTrue(result == actualResult)
+
 
 class ParsersTest(unittest.TestCase):
 
