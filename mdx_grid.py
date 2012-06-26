@@ -59,14 +59,14 @@ class RowStack:
         have width and offset."""
 
         def __init__(self, line_num, params_str):
-            """Initializes class instance with row starting tag 
+            """Initializes class instance with row starting tag
             line number and a list of cell widths."""
 
             self.line_num = line_num
             parse_param_str(params_str)
             self._cur_cell_index = 0
 
-        def parse_param_str(self, param_str):
+        def parse_params(self, param_str):
             """Parses row parameters string.
             '1, 2:1, 2:1' => widths=[1, 2, 2], offsets=[0, 1, 1] """
 
@@ -127,7 +127,7 @@ class TagsList:
         def get_formatted_params(self):
             """Returns grid tag params as formatted string."""
             if self.type == GridTags.CELL_START:
-                return str(span) + (":%d" % offset) if offset else "")
+                return str(span) + (":%d" % offset) if offset else ""
             else:
                 return ""
 
@@ -139,7 +139,7 @@ class TagsList:
 
     def __init__(self):
         self._items = []
-        self._index = -1;
+        self._index = -1
 
     def __iter__(self):
         return self
@@ -149,12 +149,12 @@ class TagsList:
 
     def next(self):
         try:
-             result = self._items[self._index]
-             self._index += 1
-             return result
+            result = self._items[self._index]
+            self._index += 1
+            return result
 
-         except IndexError:
-             raise StopIteration
+        except IndexError:
+            raise StopIteration
 
     def append(self, line_num, tag_type, span=0, offset=0):
         self._items.append(TagInfo(line_num, tag_type, span, offset))
@@ -168,34 +168,34 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
     flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
-    re_row_begin = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=GridPreprocessor.flags)
-    re_row_end = re.compile(r"^\s*--\s*end\s*--\s*$", flags=GridPreprocessor.flags)
-    re_cell_sep = re.compile(r"^\s*--\s*$", GridPreprocessor.flags)
+    re_row_begin = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=flags)
+    re_row_end = re.compile(r"^\s*--\s*end\s*--\s*$", flags=flags)
+    re_cell_sep = re.compile(r"^\s*--\s*$", flags=flags)
 
     # TODO: Use better way to keep default tag values
     # TODO: Override defaults with configuration
-    tag_row_start_str = ""
-    tag_row_end_str = ""
-    tag_cell_start_str = ""
-    tag_cell_end_str = ""
+    # tag_row_start_str = ""
+    # tag_row_end_str = ""
+    # tag_cell_start_str = ""
+    # tag_cell_end_str = ""
 
-    @staticmethod
-    def parse_widths(widths_str):
-        """Parses string of comma-separated int values to a list."""
-        # TODO
-        widths = []
-        return widths
+    # @staticmethod
+    # def parse_widths(widths_str):
+    #     """Parses string of comma-separated int values to a list."""
+    #     # TODO
+    #     widths = []
+    #     return widths
 
-    @staticmethod
-    def get_next_width(row_stack):
-        # TODO
-        return 1
+    # @staticmethod
+    # def get_next_width(row_stack):
+    #     # TODO
+    #     return 1
 
-    @staticmethod
-    def get_tag(tag_type, span=None):
-        """Returns layout tag for specified tag an span (for cells)."""
-        # TODO
-        return ""
+    # @staticmethod
+    # def get_tag(tag_type, span=None):
+    #     """Returns layout tag for specified tag an span (for cells)."""
+    #     # TODO
+    #     return ""
 
     def run(self, lines):
         tags = TagsList()
@@ -270,8 +270,6 @@ def makeExtension(configs=None):
 #     cur_row.push(rows[-1])
 #     cur_cell = new cell
 #     cur_row.add_cell(cur_cell)
-
-# Задача: Заменить каждую строку в разметке на explicit tag.
 
 # tags = []
 # rs = []

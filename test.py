@@ -1,13 +1,18 @@
-from pprint import pprint
-import markdown
+import unittest
 from mdx_grid import GridPreprocessor
 
 
-def test_pre_match():
-    matches = None
-    if GridPreprocessor.matches(GridPreprocessor.re_rowb, "-- row 1,2,3 --", matches):
-        pprint(matches)
+class GridPreprocessorTest(unittest.TestCase):
+
+    def setUp(self):
+        self.pp = GridPreprocessor()
+        return
+
+    def test_re_matches(self):
+        # matches = GridPreprocessor.re_rowb.matches("-- row 1,2,3 --")
+        # pprint(matches)
+        self.assertEqual(1, 1)
 
 
 if __name__ == "__main__":
-    test_pre_match()
+    unittest.main()
