@@ -16,25 +16,25 @@ class GridPreprocessorTest(unittest.TestCase):
         return
 
     def test_re_matches(self):
-        tag = mdx_grid.TagsList.TagInfo(mdx_grid.GridTags.ROW_OPEN, Helpers.get_rand()).get_tag()
+        tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.ROW_OPEN, Helpers.get_rand()).get_tag()
         matches = mdx_grid.Patterns.rowtag_open.match(tag)
         self.assertTrue(matches)
 
-        tag = mdx_grid.TagsList.TagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand(), 6, 6).get_tag()
+        tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand()).get_tag()
         matches = mdx_grid.Patterns.coltag_open.match(tag)
         self.assertTrue(matches)
 
-        tag = mdx_grid.TagsList.TagInfo(mdx_grid.GridTags.COL_CLOSE, Helpers.get_rand()).get_tag()
+        tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.COL_CLOSE, Helpers.get_rand()).get_tag()
         matches = mdx_grid.Patterns.coltag_close.match(tag)
         self.assertTrue(matches)
 
-        tag = mdx_grid.TagsList.TagInfo(mdx_grid.GridTags.ROW_CLOSE, Helpers.get_rand()).get_tag()
+        tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.ROW_CLOSE, Helpers.get_rand()).get_tag()
         matches = mdx_grid.Patterns.rowtag_close.match(tag)
         self.assertTrue(matches)
 
     def test_cell_params_parsing(self):
         test_values = [
-            [[0, 0], None],
+            [[0, 0], ('0,0',)],
             [[1, 1], ('1,1',)],
             [[123, 456], ('123,456',)],
             [[-1, -2], None],
@@ -42,9 +42,9 @@ class GridPreprocessorTest(unittest.TestCase):
         ]
 
         for value, result in test_values:
-            span, offset = value
-            tag = mdx_grid.TagsList.TagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand(), span, offset).get_tag()
-            matches = mdx_grid.Patterns.coltag_open.match(tag)
+            tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand())
+            tag.span, tag.offset = value
+            matches = mdx_grid.Patterns.coltag_open.match(tag.get_tag())
             actualResult = matches.groups() if matches else None
             self.assertTrue(result == actualResult)
 
