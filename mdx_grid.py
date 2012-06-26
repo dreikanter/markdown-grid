@@ -111,18 +111,16 @@ class Patterns:
 
     re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
-    # TODO: Fix patterns
-
     # Grid markers
     row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
     row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
-    col_sep = re.compile(r"^\s*-{2,}\s*$", flags=re_flags)
+    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
 
     # Grid tags for postprocessor
-    rowtag_open = re.compile(r"^<!--\s*row\s*-->$", flags=re_flags)
-    rowtag_close = re.compile(r"^<!--\s*endrow\s*-->$", flags=re_flags)
-    coltag_open = re.compile(r"^<!--\s*col\s*\(([\d\s\:,]+)\)\s*-->$", flags=re_flags)
-    coltag_close = re.compile(r"^<!--\s*endcol\s*-->$", flags=re_flags)
+    row_open_cmd = re.compile(r"^\s*row\s*$", flags=re_flags)
+    row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=re_flags)
+    col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=re_flags)
+    col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=re_flags)
 
 
 class GridCmdInfo:
@@ -134,7 +132,7 @@ class GridCmdInfo:
         """Returns grid command params as a list of strings."""
 
         if self.cmdtype == GridCmd.COL_OPEN:
-            params = [getattr(self, 'span', '')]
+            params = [getattr(self, 'span', 1)]
 
             offset = getattr(self, 'offset', 0)
             if offset:
@@ -158,9 +156,9 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
     @staticmethod
     def parse_markers(lines):
         """Parses mardown source and returns collected data which is a tuple of three items:
-            1. Rows mapping: row-marker-line-number => [col-widths[], col-offsets[]]
-            2. Grid commands mapping: col-marker-line-number => [grid-cmds-list]
-            3. Row to column mapping: row-marker-line-number => [nested-columns-line-numbers]"""
+            1. Rows mapping: row-marker-line-number => [column-widths[], column-offsets[]]
+            2. Grid commands mapping: marker-line-number => [grid-commands-list]
+            3. Row to column mapping: row-marker-line-number => [columns-line-numbers]"""
 
         row_stack = []  # Rows stack. Each item contains row marker line number
         rows = {}  # Rows mapping
@@ -239,6 +237,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         tags = GridPreprocessor.populate_cmd_params(rows, tags, r2c)
         result = GridPreprocessor.replace_markers(lines, tags)
 
+        # TODO: Drop after debugging
         fd, file_name = tempfile.mkstemp('.txt', os.path.join(os.getcwd(), 'preprocessor_out-'))
         print("Preprocessor output: " + file_name)
         with os.fdopen(fd, 'wt') as f:

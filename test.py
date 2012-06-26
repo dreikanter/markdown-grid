@@ -15,23 +15,22 @@ class GridPreprocessorTest(unittest.TestCase):
         self.pp = mdx_grid.GridPreprocessor()
         return
 
-    def test_re_matches(self):
-        # tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.ROW_OPEN, Helpers.get_rand()).get_tag()
-        # matches = mdx_grid.Patterns.rowtag_open.match(tag)
-        # self.assertTrue(matches)
+    def test_cmd_matches(self):
+        cmd = str(mdx_grid.GridCmdInfo(mdx_grid.GridCmd.ROW_OPEN, Helpers.get_rand()))
+        matches = mdx_grid.Patterns.row_open_cmd.match(cmd)
+        self.assertTrue(matches)
 
-        # tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand()).get_tag()
-        # matches = mdx_grid.Patterns.coltag_open.match(tag)
-        # self.assertTrue(matches)
+        cmd = str(mdx_grid.GridCmdInfo(mdx_grid.GridCmd.COL_OPEN, Helpers.get_rand()))
+        matches = mdx_grid.Patterns.col_open_cmd.match(cmd)
+        self.assertTrue(matches)
 
-        # tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.COL_CLOSE, Helpers.get_rand()).get_tag()
-        # matches = mdx_grid.Patterns.coltag_close.match(tag)
-        # self.assertTrue(matches)
+        cmd = str(mdx_grid.GridCmdInfo(mdx_grid.GridCmd.COL_CLOSE, Helpers.get_rand()))
+        matches = mdx_grid.Patterns.col_close_cmd.match(cmd)
+        self.assertTrue(matches)
 
-        # tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.ROW_CLOSE, Helpers.get_rand()).get_tag()
-        # matches = mdx_grid.Patterns.rowtag_close.match(tag)
-        # self.assertTrue(matches)
-        pass
+        cmd = str(mdx_grid.GridCmdInfo(mdx_grid.GridCmd.ROW_CLOSE, Helpers.get_rand()))
+        matches = mdx_grid.Patterns.row_close_cmd.match(cmd)
+        self.assertTrue(matches)
 
     def test_cell_params_parsing(self):
         # test_values = [
@@ -43,10 +42,11 @@ class GridPreprocessorTest(unittest.TestCase):
         # ]
 
         # for value, result in test_values:
-        #     tag = mdx_grid.GridTagInfo(mdx_grid.GridTags.COL_OPEN, Helpers.get_rand())
-        #     tag.span, tag.offset = value
-        #     matches = mdx_grid.Patterns.coltag_open.match(tag.get_tag())
+        #     cmd = mdx_grid.GridCmdInfo(mdx_grid.GridCmd.COL_OPEN, Helpers.get_rand())
+        #     cmd.span, cmd.offset = value
+        #     matches = mdx_grid.Patterns.col_open_cmd.match(str(cmd))
         #     actualResult = matches.groups() if matches else None
+        #     print(result, actualResult)
         #     self.assertTrue(result == actualResult)
         pass
 
