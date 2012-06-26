@@ -27,32 +27,83 @@ __status__ = "Development"
 
 
 class GridTags:
-    ROW_START = 0
-    ROW_END = 1
-    CELL_START = 2
-    CELL_END = 3
+    ROW_OPEN = 0
+    ROW_CLOSE = 1
+    COL_OPEN = 2
+    COL_CLOSE = 3
 
     @staticmethod
     def get_name(tag_type):
-        if tag_type == ROW_START:
-            return "md:row"
+        if tag_type == GridTags.ROW_OPEN:
+            return "row"
 
-        elif tag_type == ROW_END:
-            return "md:endrow"
+        elif tag_type == GridTags.ROW_CLOSE:
+            return "endrow"
 
-        elif tag_type == CELL_START:
-            return "md:col"
+        elif tag_type == GridTags.COL_OPEN:
+            return "col"
 
-        elif tag_type == CELL_END:
-            return "md:endcol"
+        elif tag_type == GridTags.COL_CLOSE:
+            return "endcol"
 
         else:
             # TODO: Use out-of-range exception class
             raise Exception("Unknown tag type specified.")
 
 
+class Parsers:
+    """Common helper functions."""
+
+    DEFAULT_SEPARATOR = ','
+    SECONDARY_SEPARATOR = ':'
+
+    @staticmethod
+    def parse_int(value, default=0):
+        """Attempts to parse a positive integer from a string.
+        Returns default value in case of parsing error or negative result."""
+        try:
+            return int(value)
+        except:
+            return default
+
+    @staticmethod
+    def parse_csints(csv_str, separator=DEFAULT_SEPARATOR):
+        """Parses a string of comma separated integers to a list."""
+        return filter(lambda x: x != None, [Parsers.parse_int(x, None) for x in csv_str.split(separator)])
+
+    @staticmethod
+    def parse_spanoffset(value, separator=SECONDARY_SEPARATOR):
+        """Parses coupled span:offset string and returns a list of two ints.
+        If the offset is omitted, the second value will be zero."""
+        result = value.split(separator)
+        return [Parsers.parse_int(result[0], None), Parsers.parse_int(result[1]) if len(result) > 1 else 0]
+
+    @staticmethod
+    def parse_row_params(param_str, separator=DEFAULT_SEPARATOR):
+        """Parses a row parameters string.
+
+        >>> widths, offsets = parse_row_params('4, 2:2, 3:1')
+        >>> widths
+        [1, 2, 2]
+        >>> offsets
+        [0, 2, 1]
+        """
+        widths = []
+        offsets = []
+
+        def populate(span, offset):
+            if span != None:
+                widths.append(span)
+                offsets.append(offset)
+
+        map(lambda span_offset: populate(span_offset[0], span_offset[1]),
+            [Parsers.parse_spanoffset(value) for value in param_str.split(separator)])
+
+        return widths, offsets
+
+
 class RowStack:
-    """Stack for row items used to handle nested row/cell containers."""
+    """Stack for row items used to handle nested row/col containers."""
 
     class RowInfo:
         """Text column collection representation. Each column could
@@ -60,36 +111,28 @@ class RowStack:
 
         def __init__(self, line_num, params_str):
             """Initializes class instance with row starting tag
-            line number and a list of cell widths."""
+            line number and a list of column widths."""
 
             self.line_num = line_num
-            parse_param_str(params_str)
-            self._cur_cell_index = 0
+            self._widths, self._offsets = Helpers.parse_param_str(params_str)
+            self._cur_col_index = 0
 
-        def parse_params(self, param_str):
-            """Parses row parameters string.
-            '1, 2:1, 2:1' => widths=[1, 2, 2], offsets=[0, 1, 1] """
-
-            # TODO
-            self._widths = []
-            self._offsets = []
-
-        def get_next_cell(self):
-            """Enumerates through cell widths."""
-            if self._cur_cell_index >= len(self._widths):
+        def get_next_col(self):
+            """Enumerates through column widths."""
+            if self._cur_col_index >= len(self._widths):
                 return None
             else:
-                result = (self._widths[self._cur_cell_index], self._offsets[self._cur_cell_index])
-                self._cur_cell_index += 1
+                result = (self._widths[self._cur_col_index], self._offsets[self._cur_col_index])
+                self._cur_col_index += 1
                 return result
 
-        def add_cell_tag(self, line_num):
-            """Adds cell starting tag line number."""
+        def add_col_tag(self, line_num):
+            """Adds column starting tag line number."""
             # TODO
             return
 
         def validate_widths(self, tags):
-            """Validates if cell widths are valid."""
+            """Validates if column widths are valid."""
             # TODO
             return
 
@@ -97,11 +140,10 @@ class RowStack:
             # TODO
             return ""
 
-
     def __init__(self):
         return
 
-    def add_cell_tag(self, cell_tag):
+    def add_col_tag(self, col_tag):
         # TODO
         return
 
@@ -118,24 +160,24 @@ class TagsList:
     """Grid tags collection."""
 
     class TagInfo:
-        def __init__(self, line_num, tag_type, span=0, offset=0):
+        def __init__(self, tag_type, line_num=0, span=0, offset=0):
             self.line_num = line_num
-            self.type = tag_type
+            self.tag_type = tag_type
             self.span = span
             self.offset = offset
 
         def get_formatted_params(self):
             """Returns grid tag params as formatted string."""
-            if self.type == GridTags.CELL_START:
-                return str(span) + (":%d" % offset) if offset else ""
+            if self.tag_type == GridTags.COL_OPEN:
+                return str(self.span) + (",%d" % self.offset) if self.offset else ""
             else:
                 return ""
 
         def get_tag(self):
-            """Return grid tag."""
+            """Generates a grid tag."""
             tag = GridTags.get_name(self.tag_type)
-            params = get_formatted_params()
-            return "<!--%s%s-->" % (tag, (" " + params) if params else "")
+            params = self.get_formatted_params()
+            return "<!--%s%s-->" % (tag, ("(%s)" % params) if params else "")
 
     def __init__(self):
         self._items = []
@@ -157,27 +199,38 @@ class TagsList:
             raise StopIteration
 
     def append(self, line_num, tag_type, span=0, offset=0):
-        self._items.append(TagInfo(line_num, tag_type, span, offset))
+        self._items.append(TagInfo(tag_type, line_num, span, offset))
 
     def get_last_num(self):
         return self._items[-1].line_num if self._items else None
 
 
+class Patterns:
+    """Common regular expressions."""
+
+    re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
+
+    # Extended Markdown syntax
+    row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
+    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
+    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
+
+    # Grid tags for postprocessor
+    rowtag_open = re.compile(r"^<!--\s*row\s*-->$", flags=re_flags)
+    rowtag_close = re.compile(r"^<!--\s*endrow\s*-->$", flags=re_flags)
+    coltag_open = re.compile(r"^<!--\s*col\s*\(([\d\s\:,]+)\)\s*-->$", flags=re_flags)
+    coltag_close = re.compile(r"^<!--\s*endcol\s*-->$", flags=re_flags)
+
+
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
     """Markdown preprocessor."""
-
-    flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
-
-    re_row_begin = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=flags)
-    re_row_end = re.compile(r"^\s*--\s*end\s*--\s*$", flags=flags)
-    re_cell_sep = re.compile(r"^\s*--\s*$", flags=flags)
 
     # TODO: Use better way to keep default tag values
     # TODO: Override defaults with configuration
     # tag_row_start_str = ""
     # tag_row_end_str = ""
-    # tag_cell_start_str = ""
-    # tag_cell_end_str = ""
+    # tag_COL_OPEN_str = ""
+    # tag_COL_CLOSE_str = ""
 
     # @staticmethod
     # def parse_widths(widths_str):
@@ -193,7 +246,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
     # @staticmethod
     # def get_tag(tag_type, span=None):
-    #     """Returns layout tag for specified tag an span (for cells)."""
+    #     """Returns layout tag for specified tag an span (for columns)."""
     #     # TODO
     #     return ""
 
@@ -205,26 +258,26 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         for line_num in range(len(lines)):
             line = lines[line_num]
 
-            matches = re_row_begin.match(line)
+            matches = Patterns.row_open.match(line)
             if matches:
-                # Got <row><cell>
+                # Got <row><col>
                 # TODO: Validate matches
                 row_stack.push(line_num, matches.groups(1))
-                tags.append(line_num, GridTags.ROW_START)
-                tags.append(line_num, GridTags.CELL_START, row_stack.get_last_num())
-                row_stack.add_cell_tag(tags.get_last_num())
+                tags.append(line_num, GridTags.ROW_OPEN)
+                tags.append(line_num, GridTags.COL_OPEN, row_stack.get_last_num())
+                row_stack.add_col_tag(tags.get_last_num())
 
-            elif re_row_end.matches(line):
-                # Got </cell></row>
-                tags.append(line_num, GridTagrs.CELL_END)
-                tags.append(line_num, GridTagrs.ROW_END)
+            elif Patterns.row_close.matches(line):
+                # Got </col></row>
+                tags.append(line_num, GridTags.COL_CLOSE)
+                tags.append(line_num, GridTags.ROW_CLOSE)
                 row_stack.validate_widths(tags)
                 row_stack.pop()
 
-            elif re_cell_sep.matches(line):
-                # Got </cell><cell>
-                tags.append(line_num, GridTags.CELL_END)
-                tags.append(line_num, GridTags.CELL_START, row_stack.get_last_num())
+            elif Patterns.col_sep.matches(line):
+                # Got </col><col>
+                tags.append(line_num, GridTags.COL_CLOSE)
+                tags.append(line_num, GridTags.COL_OPEN, row_stack.get_last_num())
 
             else:
                 # Other lines are irrelevant
@@ -234,7 +287,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         for tag in tags:
             lines[tag.line_num] = tag.get_tag()
 
-        # TODO: Close cells and rows if the stack is not empty
+        # TODO: Close columns and rows if the stack is not empty
         # lines.append(...)
 
         return lines
@@ -260,36 +313,3 @@ class GridExtension(markdown.Extension):
 def makeExtension(configs=None):
     """Markdown extension initializer."""
     return GridExtension(configs=configs)
-
-
-#   1        2   3   4   5      6   7      8   9   10
-# t {5,2,2 t | t | t } t {4,8 t | t {6,6 t | t } t }
-
-# if first line or new row:
-#     rows += new row
-#     cur_row.push(rows[-1])
-#     cur_cell = new cell
-#     cur_row.add_cell(cur_cell)
-
-# tags = []
-# rs = []
-# foreach line, num in lines:
-#     switch line:
-#         case row start:
-#             widths = get_widths()
-#             rs.push new row(num, widths)
-#             tags.add(num, row-start)
-#             tags.add(num, cell-start(rs.widths.next))
-#         case cell split:
-#             tags.add(num, cell-end)
-#             tags.add(num, cell-start(rs.widths.next))
-#         case row end:
-#             tags.add(num, cell-end)
-#             tags.add(num, row-end)
-#             rs.current_row.validate_widths()
-#             rs.pop()
-
-# # got valid tags data
-
-# foreach tag in tags:
-#     lines[tag.get_num()] = tag.get_tag()
