@@ -55,6 +55,67 @@ class GridCmd:
             raise Exception("Unknown tag type specified.")
 
 
+class Patterns:
+    """Common regular expressions."""
+
+    re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
+
+    # Grid markers
+    row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
+    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
+    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
+
+    # Grid commands for postprocessor
+    row_open_cmd = re.compile(r"^\s*row\s*$", flags=re_flags)
+    row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=re_flags)
+    col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=re_flags)
+    col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=re_flags)
+
+    # Grid tag - a container for command sequence
+    tag = re.compile(r"\s*<!--grid\:(.*)-->\s*")
+
+
+class GridConf:
+    """Contains extension configuration for common HTML/CSS frameworks.
+    Each configuration is a dictionary defining the following values:
+
+     - row_open  - Grid row opening
+     - row_close - Grid row closing
+     - col_open  - Column opening
+     - col_close - Column opening
+     - col_class - CSS class(es) for the column; {width} marker will
+                   be replaced with width value from the markup
+     - col_class_first - CSS class(es) for the first column in the row
+     - col_class_last - CSS class(es) for the last column in the row
+
+     Example:
+        MY_GRID = {
+            'row_open': '<div class="row">',
+            'row_close': '</div>',
+            'col_open': '<div class="{}{col_classes}">',
+            'col_close': '</div>',
+            'col_width_class': 'column{width}',
+            'col_span_class': 'column{width}',
+            'col_class_first': 'first',
+            'col_class_last': 'second',
+        }
+    """
+
+    BOOTSTRAP = {
+        'row_open': '<div class="row">',
+        'row_close': '</div>',
+        'col_open': '<div class=>',
+        'col_close': '',
+        'col_class': '',
+        'col_class_first': '',
+        'col_class_last': '',
+    }
+
+    SKELETON = {}
+
+    GS960 = {}
+
+
 class Parsers:
     """Common helper functions."""
 
@@ -104,23 +165,6 @@ class Parsers:
             [Parsers.parse_spanoffset(value) for value in param_str.split(separator)])
 
         return widths, offsets
-
-
-class Patterns:
-    """Common regular expressions."""
-
-    re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
-
-    # Grid markers
-    row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
-    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
-    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
-
-    # Grid tags for postprocessor
-    row_open_cmd = re.compile(r"^\s*row\s*$", flags=re_flags)
-    row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=re_flags)
-    col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=re_flags)
-    col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=re_flags)
 
 
 class GridCmdInfo:
@@ -238,7 +282,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         result = GridPreprocessor.replace_markers(lines, tags)
 
         # TODO: Drop after debugging
-        fd, file_name = tempfile.mkstemp('.txt', os.path.join(os.getcwd(), 'preprocessor_out-'))
+        fd, file_name = tempfile.mkstemp('.txt', os.path.join(os.getcwd(), 'tmp_preprocessor-out_'))
         print("Preprocessor output: " + file_name)
         with os.fdopen(fd, 'wt') as f:
             f.write("\n".join(lines))
