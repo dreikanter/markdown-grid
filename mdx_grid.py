@@ -22,28 +22,33 @@ Dependencies:
 import re
 import markdown
 
+# TODO: Drop after debugging
+import os
+import tempfile
 
 __status__ = "Development"
 
 
-class GridTags:
+class GridCmd:
+    """Grid commands."""
+
     ROW_OPEN = 0
     ROW_CLOSE = 1
     COL_OPEN = 2
     COL_CLOSE = 3
 
     @staticmethod
-    def get_name(tag_type):
-        if tag_type == GridTags.ROW_OPEN:
+    def get_name(cmdtype):
+        if cmdtype == GridCmd.ROW_OPEN:
             return "row"
 
-        elif tag_type == GridTags.ROW_CLOSE:
+        elif cmdtype == GridCmd.ROW_CLOSE:
             return "endrow"
 
-        elif tag_type == GridTags.COL_OPEN:
+        elif cmdtype == GridCmd.COL_OPEN:
             return "col"
 
-        elif tag_type == GridTags.COL_CLOSE:
+        elif cmdtype == GridCmd.COL_CLOSE:
             return "endcol"
 
         else:
@@ -106,6 +111,8 @@ class Patterns:
 
     re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
+    # TODO: Fix patterns
+
     # Grid markers
     row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
     row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
@@ -118,127 +125,31 @@ class Patterns:
     coltag_close = re.compile(r"^<!--\s*endcol\s*-->$", flags=re_flags)
 
 
-# class RowStack:
-#     """Stack for row items used to handle nested row/col containers."""
-
-#     class RowInfo:
-#         """Text column collection representation. Each column could
-#         have width and offset."""
-
-#         def __init__(self, line_num, params_str):
-#             """Initializes class instance with row starting tag
-#             line number and a list of column widths."""
-
-#             self.line_num = line_num
-#             self._widths, self._offsets = Parsers.parse_param_str(params_str)
-#             self._cur_col_index = 0
-
-#         def get_next_col(self):
-#             """Enumerates through column widths."""
-#             if self._cur_col_index >= len(self._widths):
-#                 return None
-#             else:
-#                 result = (self._widths[self._cur_col_index], self._offsets[self._cur_col_index])
-#                 self._cur_col_index += 1
-#                 return result
-
-#         def add_col_tag(self, line_num):
-#             """Adds column starting tag line number."""
-#             # TODO
-#             return
-
-#         def validate_widths(self, tags):
-#             """Validates if column widths are valid."""
-#             # TODO
-#             return
-
-#         def get_grid_tag_params(self):
-#             # TODO
-#             return ""
-
-#     def __init__(self):
-#         return
-
-#     def add_col_tag(self, col_tag):
-#         # TODO
-#         return
-
-#     def push(self, line_num, widths):
-#         # TODO
-#         return
-
-#     def pop(self):
-#         # TODO
-#         return
-
-
-# class TagsList:
-#     """Grid tags collection."""
-
-#     class TagInfo:
-#         def __init__(self, tag_type, line_num=0, span=0, offset=0):
-#             self.line_num = line_num
-#             self.tag_type = tag_type
-#             self.span = span
-#             self.offset = offset
-
-#         def get_formatted_params(self):
-#             """Returns grid tag params as formatted string."""
-#             if self.tag_type == GridTags.COL_OPEN:
-#                 return str(self.span) + ("," + str(self.offset)) if self.offset else ""
-#             else:
-#                 return ""
-
-#         def get_tag(self):
-#             """Generates a grid tag."""
-#             tag = GridTags.get_name(self.tag_type)
-#             params = self.get_formatted_params()
-#             return "<!--%s%s-->" % (tag, ("(%s)" % params) if params else "")
-
-#     def __init__(self):
-#         self._items = []
-#         self._index = -1
-
-#     def __iter__(self):
-#         return self
-
-#     def __next__(self):
-#         return next(self)
-
-#     def next(self):
-#         try:
-#             result = self._items[self._index]
-#             self._index += 1
-#             return result
-
-#         except IndexError:
-#             raise StopIteration
-
-#     def append(self, line_num, tag_type, span=0, offset=0):
-#         self._items.append(TagsList.TagInfo(tag_type, line_num, span, offset))
-
-#     def get_last_num(self):
-#         return self._items[-1].line_num if self._items else None
-
-
-class GridTagInfo:
-    def __init__(self, tag_type, params={}):
-        self.tag_type = tag_type
+class GridCmdInfo:
+    def __init__(self, cmdtype, params={}):
+        self.cmdtype = cmdtype
         self.params = params
 
     def get_formatted_params(self):
-        """Returns grid tag params as formatted string."""
-        if self.tag_type == GridTags.COL_OPEN:
-            offset = str(getattr(self, 'offset', 0))
-            return str(getattr(self, 'span', '')) + (',' + offset) if offset else ''
-        else:
-            return ""
+        """Returns grid command params as a list of strings."""
 
-    def get_tag(self):
-        """Generates a grid tag."""
-        tag = GridTags.get_name(self.tag_type)
-        params = self.get_formatted_params()
-        return "<!--%s%s-->" % (tag, ("(%s)" % params) if params else "")
+        if self.cmdtype == GridCmd.COL_OPEN:
+            params = [getattr(self, 'span', '')]
+
+            offset = getattr(self, 'offset', 0)
+            if offset:
+                params.append(offset)
+
+            return [str(param) for param in params]
+
+        else:
+            return []
+
+    def __str__(self):
+        """Generates text representation for a grid command."""
+        cmd = GridCmd.get_name(self.cmdtype)
+        params = ','.join(self.get_formatted_params())
+        return cmd + (("(%s)" % params) if params else "")
 
 
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
@@ -248,13 +159,13 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
     def parse_markers(lines):
         """Parses mardown source and returns collected data which is a tuple of three items:
             1. Rows mapping: row-marker-line-number => [col-widths[], col-offsets[]]
-            2. Tags mapping: col-marker-line-number => [grid-tags-list]
+            2. Grid commands mapping: col-marker-line-number => [grid-cmds-list]
             3. Row to column mapping: row-marker-line-number => [nested-columns-line-numbers]"""
 
         row_stack = []  # Rows stack. Each item contains row marker line number
-        rows = {}       # Rows mapping
-        tags = {}       # Tags mapping
-        r2c = {}        # Row to column mapping
+        rows = {}  # Rows mapping
+        cmds = {}  # Commands mapping
+        r2c = {}  # Row to column mapping
 
         for line_num in range(len(lines)):
             line = lines[line_num]
@@ -266,17 +177,17 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 row_stack.append(line_num)
                 rows[line_num] = Parsers.parse_row_params(matches.group(0) if matches.groups() else "")
                 r2c[row_stack[-1]] = [line_num]
-                tags[line_num] = [GridTagInfo(GridTags.ROW_OPEN), GridTagInfo(GridTags.COL_OPEN)]
+                cmds[line_num] = [GridCmdInfo(GridCmd.ROW_OPEN), GridCmdInfo(GridCmd.COL_OPEN)]
 
             elif Patterns.row_close.match(line):
                 # Got -- which means </col></row>
-                tags[line_num] = [GridTagInfo(GridTags.COL_CLOSE), GridTagInfo(GridTags.ROW_CLOSE)]
+                cmds[line_num] = [GridCmdInfo(GridCmd.COL_CLOSE), GridCmdInfo(GridCmd.ROW_CLOSE)]
                 row_stack.pop()
 
             elif Patterns.col_sep.match(line):
                 # Got --end-- which means </col><col>
                 r2c[row_stack[-1]].append(line_num)
-                tags[line_num] = [GridTagInfo(GridTags.COL_CLOSE), GridTagInfo(GridTags.COL_OPEN)]
+                cmds[line_num] = [GridCmdInfo(GridCmd.COL_CLOSE), GridCmdInfo(GridCmd.COL_OPEN)]
 
             else:
                 # Other lines are irrelevant
@@ -287,42 +198,53 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             # lines.append(...)
             pass
 
-        return rows, tags, r2c
+        return rows, cmds, r2c
 
     @staticmethod
-    def populate_tag_params(rows, tags, r2c):
-        """Returns a line number to grid tags mapping."""
+    def populate_cmd_params(rows, cmds, r2c):
+        """Returns a line number to grid commands mapping."""
         for row_line_num in rows:
             spans, offsets = rows[row_line_num]
             col_num = 0
             for col_line_num in r2c[row_line_num]:
-                for tag in tags[col_line_num]:
-                    if tag.tag_type == GridTags.COL_OPEN:
+                for cmd in cmds[col_line_num]:
+                    if cmd.cmdtype == GridCmd.COL_OPEN:
                         try:
-                            tag.span = spans[col_num]
-                            tag.offset = offsets[col_num]
+                            cmd.span = spans[col_num]
+                            cmd.offset = offsets[col_num]
                         except:
-                            tag.span = 1
-                            tag.offset = 0
+                            cmd.span = 1
+                            cmd.offset = 0
                         finally:
                             col_num += 1
 
                         break
 
-        return tags
+        return cmds
 
     @staticmethod
-    def replace_markers(lines, tags):
+    def replace_markers(lines, cmds):
         """Replace grid markers with tags."""
-        for line_num in tags:
-            lines[line_num] = ''.join([tag.get_tag() for tag in tags[line_num]])
+        for line_num in cmds:
+            tag_commands = ';'.join([str(command) for command in cmds[line_num]])
+
+            # Extra line break prevents generation of unclosed paragraphs
+            lines[line_num] = "\n<!--grid:%s-->" % tag_commands
+
         return lines
 
     def run(self, lines):
         """Main preprocessor method."""
         rows, tags, r2c = GridPreprocessor.parse_markers(lines)
-        tags = GridPreprocessor.populate_tag_params(rows, tags, r2c)
-        return GridPreprocessor.replace_markers(lines, tags)
+        tags = GridPreprocessor.populate_cmd_params(rows, tags, r2c)
+        result = GridPreprocessor.replace_markers(lines, tags)
+
+        fd, file_name = tempfile.mkstemp('.txt', os.path.join(os.getcwd(), 'preprocessor_out-'))
+        print("Preprocessor output: " + file_name)
+        with os.fdopen(fd, 'wt') as f:
+            f.write("\n".join(lines))
+
+        return result
 
 
 class GridPostprocessor(markdown.postprocessors.Postprocessor):
