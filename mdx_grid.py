@@ -22,10 +22,6 @@ Dependencies:
 import re
 import markdown
 
-# TODO: Drop after debugging
-import os
-import tempfile
-
 __author__ = "Alex Musayev"
 __email__ = "alex.musayev@gmail.com"
 __copyright__ = "Copyright 2012, %s <http://alex.musayev.com>" % __author__
@@ -79,56 +75,97 @@ class Patterns:
     col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=re_flags)
 
     # Grid tag - a container for command sequence
-    tag = re.compile(r"\s*<!--grid\:(.*)-->\s*")
+    tag = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=re_flags)
 
     # Syntax sugar to specify Bootstrap's span/offset classes
     re_spnoff = re.compile(r"^\s*(\d+)(\s*\:\s*(\d+))?\s*$")
 
+
 class GridConf:
     """Extension configuration profiles container for common
-    HTML/CSS frameworks.
+    HTML/CSS frameworks."""
 
-    Configuration parameters:
-      - row_open - Grid row opening
-      - row_close - Grid row closing
-      - col_open - Column opening
-      - col_close - Column opening
-      - col_class - CSS class(es) for the column; {width} marker will
-            be replaced with width value from the markup
-      - col_class_first - CSS class(es) for the first column in the row
-      - col_class_last - CSS class(es) for the last column in the row
+    DEFAULT_PROFILE = 'bootstrap'
 
-     [TBD]
-
-    """
-
-    BOOTSTRAP = {
-        'name': 'bootstrap',
-        'row_open': '<div class="row">',
-        'row_close': '</div>',
-        'col_open': '<div class="%s">',
-        'col_close': '</div>',
-        'col_span_class': 'span%s',
-        'col_offset_class': 'offset%s',
-        'default_col_class': 'span1',
-        'common_col_class': '',
-        'col_class_first': '',
-        'col_class_last': '',
+    # Configuration parameters description
+    DESCRIPTIONS = {
+        'name': 'Configuration profile name',
+        'row_open': 'Grid row opening',
+        'row_close': 'Grid row closing',
+        'col_open': 'Column opening',
+        'col_close': """Column opening""",
+        'col_span_class': 'Column class. {value} marker will be replaced ' \
+            'with span/width value from the markup',
+        'col_offset_class': 'Column offset class. {value} marker will be ' \
+            'replaced with span/width value from the markup',
+        'default_col_class': 'Default column class',
+        'common_col_class': 'Common column class',
+        'col_class_first': 'CSS class for the first column in the row',
+        'col_class_last': 'CSS class for the last column in the row',
     }
 
-    SKELETON = {}
+    PROFILES = {
+        'bootstrap': {
+            'row_open': '<div class="row">',
+            'row_close': '</div>',
+            'col_open': '<div class="{value}">',
+            'col_close': '</div>',
+            'col_span_class': 'span{value}',
+            'col_offset_class': 'offset{value}',
+            'default_col_class': 'span1',
+            'common_col_class': '',
+            'col_class_first': '',
+            'col_class_last': '',
+        },
+        # TODO: ...
+        'skeleton': {
+            'row_open': '<div class="">',
+            'row_close': '</div>',
+            'col_open': '<div class="">',
+            'col_close': '</div>',
+            'col_span_class': '',
+            'col_offset_class': '',
+            'default_col_class': '',
+            'common_col_class': '',
+            'col_class_first': '',
+            'col_class_last': '',
+        },
+        # TODO: ...
+        '960gs': {
+            'row_open': '<div class="">',
+            'row_close': '</div>',
+            'col_open': '<div class="">',
+            'col_close': '</div>',
+            'col_span_class': '',
+            'col_offset_class': '',
+            'default_col_class': '',
+            'common_col_class': '',
+            'col_class_first': '',
+            'col_class_last': '',
+        },
+    }
 
-    GS960 = {}
+    def get(profile_name=DEFAULT_PROFILE):
+        """Gets the specified configuration profile. Default one
+        will be returned if the profile name is not specified."""
+        name = str(profile_name).lower()
 
-    # Alias for default configuration
-    DEFAULT = BOOTSTRAP
+        try:
+            conf = dict(GridConf.PROFILES[name])
+            # Profile name presence is guaranteed
+            conf = {'name': name}
+            for param in conf:
+                conf[param] = [conf[param], GridConf.DESCRIPTIONS[param]]
+            return conf
+
+        except:
+            raise Exception("Error getting configuration profile: " + name)
 
 
 class Parsers:
     """Common helper functions."""
 
     DEFAULT_SEPARATOR = ','
-    # SECONDARY_SEPARATOR = ':'
 
     @staticmethod
     def expand_shortcuts(arg, is_bs):
@@ -160,7 +197,8 @@ class Parsers:
 
         Each row marker contains a set of parameters defining CSS classes for
         the corresponding column. This function takes a comma-separated string
-        and returns a list of processed values.
+        and returns a list of processed values. If there are no values, an empty
+        list will be returned.
 
         Arguments:
           - arguments - comma-separated string of arguments.
@@ -179,7 +217,7 @@ class Parsers:
         args = [' '.join(arg.split()) for arg in args]
         if len(args) == 1 and not args[0]:
             args = []
-        is_bs = (profile == GridConf.BOOTSTRAP['name'])
+        is_bs = (profile == GridConf.BOOTSTRAP['name'][0])
         return [Parsers.expand_shortcuts(arg, is_bs) for arg in args]
 
 
@@ -211,16 +249,15 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         Returns:
             A three-item tuple:
 
-            # 1. Rows mapping: row-marker-linenum => [column-widths[], column-offsets[]]
             1. Rows mapping: row marker line => [column CSS classes]
                (each item could contain a set of space-separated class names)
             2. Grid commands mapping: marker line => [grid commands]
             3. Row to column mapping: row marker line => [column lines]"""
 
         row_stack = []  # Rows stack. Each item contains row marker line number
-        rows = {}  # Rows mapping (result tuple item 1)
-        cmds = {}  # Commands mapping (2)
-        r2c = {}  # Row to column mapping (3)
+        rows = {}       # Rows mapping (result tuple item 1)
+        cmds = {}       # Commands mapping (2)
+        r2c = {}        # Row to column mapping (3)
 
         for line_num in range(len(lines)):
             line = lines[line_num]
@@ -230,23 +267,20 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             if matches:
                 # Got  --row [params]-- which means <row [params]><col>
                 row_stack.append(line_num)
-
-                # rows[line_num] = Parsers.parse_row_params(matches.group(0) if matches.groups() else "")
-                args = matches.group(0) if matches.groups() else ""
-                rows[line_num] = Parsers.parse_row_args(args)
-
+                args = matches.group(1) if matches.groups() else ""
+                rows[line_num] = Parsers.parse_row_args(args, profile)
                 r2c[row_stack[-1]] = [line_num]
                 cmds[line_num] = [GridCmdInfo(GridCmd.ROW_OPEN),
                                   GridCmdInfo(GridCmd.COL_OPEN)]
 
             elif Patterns.row_close.match(line):
-                # Got -- which means </col></row>
+                # Got --end-- which means </col></row>
                 cmds[line_num] = [GridCmdInfo(GridCmd.COL_CLOSE),
                                   GridCmdInfo(GridCmd.ROW_CLOSE)]
                 row_stack.pop()
 
             elif Patterns.col_sep.match(line):
-                # Got --end-- which means </col><col>
+                # Got -- which means </col><col>
                 r2c[row_stack[-1]].append(line_num)
                 cmds[line_num] = [GridCmdInfo(GridCmd.COL_CLOSE),
                                   GridCmdInfo(GridCmd.COL_OPEN)]
@@ -256,45 +290,35 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 pass
 
         if row_stack:
-            # TODO: Close columns and rows if the stack is not empty
-            # cmds[-1].append(...)
-            pass
+            # Closing columns and rows if the stack is still not empty
+            while row_stack:
+                cmds[-1].append([GridCmdInfo(GridCmd.COL_CLOSE),
+                                 GridCmdInfo(GridCmd.ROW_CLOSE)])
+                row_stack.pop()
 
         return rows, cmds, r2c
 
     @staticmethod
-    def populate_cmd_params(rows, cmds, r2c, default_col_style=""):
+    def populate_cmd_params(rows, cmds, r2c, def_col_style=""):
         """Returns a line number to grid commands mapping."""
         for row_line_num in rows:
-            # spans, offsets = rows[row_line_num]
-            styles = rows[row_line_num]
-            col_num = 0
+            styles = rows[row_line_num][::-1]
             for col_line_num in r2c[row_line_num]:
                 for cmd in cmds[col_line_num]:
                     if cmd.cmdtype == GridCmd.COL_OPEN:
-                        try:
-                            cmd.style = styles[col_num]
-                            # cmd.span = spans[col_num]
-                            # cmd.offset = offsets[col_num]
-                        except:
-                            cmd.style = default_col_style
-                            # cmd.span = 1
-                            # cmd.offset = 0
-                        finally:
-                            col_num += 1
-
+                        cmd.style = styles.pop() if styles else def_col_style
                         break
-
         return cmds
 
     @staticmethod
     def replace_markers(lines, cmds):
         """Replace grid markers with tags."""
         for line_num in cmds:
-            tag_commands = ';'.join([str(command) for command in cmds[line_num]])
+            commands = [str(command) for command in cmds[line_num]]
+            commands = ';'.join(commands)
 
             # Extra line break prevents generation of unclosed paragraphs
-            lines[line_num] = "\n<!--grid:%s-->" % tag_commands
+            lines[line_num] = "\n<!--grid:%s-->" % commands
 
         return lines
 
@@ -306,19 +330,11 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
     def run(self, lines):
         """Main preprocessor method."""
-        # TODO: Purify configuration
-
-        rows, cmds, r2c = GridPreprocessor.parse_markers(lines)
-        style = self.md.get_conf('default_col_style')
+        profile = self.get_conf('name')
+        rows, cmds, r2c = GridPreprocessor.parse_markers(lines, profile)
+        style = self.get_conf('default_col_style')
         cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, style)
         result = GridPreprocessor.replace_markers(lines, cmds)
-
-        # TODO: Drop after debugging
-        fd, file_name = tempfile.mkstemp('.txt', os.path.join(os.getcwd(), 'tmp_preprocessor-out_'))
-        print("Preprocessor output: " + file_name)
-        with os.fdopen(fd, 'wt') as f:
-            f.write("\n".join(lines))
-
         return result
 
 
@@ -335,19 +351,19 @@ class GridExtension(markdown.Extension):
     """Markdown extension class."""
 
     def __init__(self, configs):
-        self.conf = GridConf.DEFAULT
+        self.config = GridConf.get()
 
         if configs:
             # Overriding default configuration
-            self.conf.update(configs)
+            self.config.update(configs)
 
     def extendMarkdown(self, md, md_globals):
         """Initializes markdown extension components."""
         preprocessor = GridPreprocessor(md)
-        preprocessor.conf = self.conf
+        preprocessor.config = self.config
         md.preprocessors.add('grid', preprocessor, '_begin')
         postprocessor = GridPostprocessor(md)
-        postprocessor.conf = self.conf
+        postprocessor.config = self.config
         md.postprocessors.add('grid', postprocessor, '_end')
 
 

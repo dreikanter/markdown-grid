@@ -1,4 +1,3 @@
-import re
 import unittest
 import mdx_grid
 import random
@@ -78,54 +77,6 @@ class ParsersTest(unittest.TestCase):
 
             actual_result = mdx_grid.Parsers.parse_row_args(matches.group(1), profile)
             self.assertListEqual(result, actual_result)
-
-    # def test_parse_spanoffset(self):
-    #     test_values = {
-    #         "10": [10, 0],
-    #         "10:20": [10, 20],
-    #         "\t1 : 2\t": [1, 2],
-    #         "": [None, 0],
-    #         ":123": [None, 123],
-    #         "456:": [456, 0],
-    #         "1:abc": [1, 0],
-    #         "abc:1": [None, 1],
-    #     }
-
-    #     for value in test_values:
-    #         self.assertListEqual(mdx_grid.Parsers.parse_spanoffset(value), test_values[value])
-
-    # def test_parse_csints(self):
-    #     test_values = {
-    #         "10": [10],
-    #         "1,2,3": [1, 2, 3],
-    #         "": [],
-    #         "\t  \t": [],
-    #         "  123, 456,\t-789  ": [123, 456, -789],
-    #         "1, 2, potatoes, 3, potatoes": [1, 2, 3],
-    #         "more potatoes": [],
-    #     }
-
-    #     for value in test_values:
-    #         self.assertListEqual(mdx_grid.Parsers.parse_csints(value), test_values[value])
-
-    # def test_parse_row_params(self):
-    #     test_values = {
-    #         "10": [[10], [0]],
-    #         "1,2,3": [[1, 2, 3], [0, 0, 0]],
-    #         "": [[], []],
-    #         "\t  \t": [[], []],
-    #         "  123, 456,\t-789  ": [[123, 456, -789], [0, 0, 0]],
-    #         "1, 2, potatoes, 3, potatoes": [[1, 2, 3], [0, 0, 0]],
-    #         "more potatoes": [[], []],
-    #         "1:4, 2:5, 3:6": [[1, 2, 3], [4, 5, 6]],
-    #         "1:4, 2, 3:6": [[1, 2, 3], [4, 0, 6]],
-    #         " 1 : 4 , 2 : 5, 3\t:\t6": [[1, 2, 3], [4, 5, 6]],
-    #     }
-
-    #     for value in test_values:
-    #         widths, offsets = mdx_grid.Parsers.parse_row_params(value)
-    #         self.assertListEqual(widths, test_values[value][0])
-    #         self.assertListEqual(offsets, test_values[value][1])
 
 
 if __name__ == "__main__":
