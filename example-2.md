@@ -1,6 +1,6 @@
 # Extended markdown syntax example #2
 
--- row 5, 2, 5 --
+-- row 5 1, 2, 5 --
 col 1
 --
 col 2

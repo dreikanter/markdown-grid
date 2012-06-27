@@ -40,42 +40,39 @@ class GridCmd:
     COL_OPEN = 2
     COL_CLOSE = 3
 
+    _names = {
+        ROW_OPEN: "row",
+        ROW_CLOSE: "endrow",
+        COL_OPEN: "col",
+        COL_CLOSE: "endcol",
+    }
+
     @staticmethod
     def get_name(cmdtype):
-        if cmdtype == GridCmd.ROW_OPEN:
-            return "row"
-
-        elif cmdtype == GridCmd.ROW_CLOSE:
-            return "endrow"
-
-        elif cmdtype == GridCmd.COL_OPEN:
-            return "col"
-
-        elif cmdtype == GridCmd.COL_CLOSE:
-            return "endcol"
-
-        else:
+        try:
+            return GridCmd._names[cmdtype]
+        except:
             raise Exception("Unknown tag type specified.")
 
 
 class Patterns:
     """Common regular expressions."""
 
-    re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
+    _flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
     # Grid markers
-    row_open = re.compile(r"^\s*--\s*row\s*([a-z\d,-_\:\s]*)\s*--\s*$", flags=re_flags)
-    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
-    col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
+    row_open = re.compile(r"^\s*--\s*row\s*([a-z\d,-_\:\s]*)\s*--\s*$", flags=_flags)
+    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=_flags)
+    col_sep = re.compile(r"^\s*--\s*$", flags=_flags)
 
     # Grid commands for postprocessor
-    row_open_cmd = re.compile(r"^\s*row\s*$", flags=re_flags)
-    row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=re_flags)
-    col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=re_flags)
-    col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=re_flags)
+    row_open_cmd = re.compile(r"^\s*row\s*$", flags=_flags)
+    row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=_flags)
+    col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=_flags)
+    col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=_flags)
 
     # Grid tag - a container for command sequence
-    tag = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=re_flags)
+    tag = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=_flags)
 
     # Syntax sugar to specify Bootstrap's span/offset classes
     re_spnoff = re.compile(r"^\s*(\d+)(\s*\:\s*(\d+))?\s*$")
@@ -145,6 +142,7 @@ class GridConf:
         },
     }
 
+    @staticmethod
     def get(profile_name=DEFAULT_PROFILE):
         """Gets the specified configuration profile. Default one
         will be returned if the profile name is not specified."""
@@ -185,9 +183,14 @@ class Parsers:
         """
 
         def expand(matches):
-            s = matches.group(1)
-            o = matches.group(3)
-            return 'span' + str(s) + ((' offset' + o) if o else '')
+            """Expands a single span:offset group."""
+            sc = GridConf.PROFILES['bootstrap']['col_span_class']
+            span = sc.format(value=matches.group(1))
+
+            oc = GridConf.PROFILES['bootstrap']['col_offset_class']
+            offset = matches.group(3)
+
+            return (span + ' ' + oc.format(value=offset)) if offset else span
 
         return Patterns.re_spnoff.sub(expand, arg) if is_bs else arg
 
@@ -217,7 +220,7 @@ class Parsers:
         args = [' '.join(arg.split()) for arg in args]
         if len(args) == 1 and not args[0]:
             args = []
-        is_bs = (profile == GridConf.BOOTSTRAP['name'][0])
+        is_bs = (profile == 'bootstrap')
         return [Parsers.expand_shortcuts(arg, is_bs) for arg in args]
 
 
