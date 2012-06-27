@@ -79,13 +79,16 @@ class Patterns:
 
 
 class GridConf:
-    """Extension configuration profiles container for common
-    HTML/CSS frameworks."""
+    """Predefined configuration profiles for common HTML/CSS frameworks."""
 
-    DEFAULT_PROFILE = 'bootstrap'
+    BOOTSTRAP_PROFILE = 'bootstrap'
+    SKELETON_PROFILE = 'skeleton'
+    GS960_PROFILE = '960gs'
+
+    DEFAULT_PROFILE = BOOTSTRAP_PROFILE
 
     # Configuration parameters description
-    DESCRIPTIONS = {
+    _desc = {
         'name': 'Configuration profile name',
         'row_open': 'Grid row opening',
         'row_close': 'Grid row closing',
@@ -101,8 +104,8 @@ class GridConf:
         'col_class_last': 'CSS class for the last column in the row',
     }
 
-    PROFILES = {
-        'bootstrap': {
+    _profiles = {
+        BOOTSTRAP_PROFILE: {
             'row_open': '<div class="row">',
             'row_close': '</div>',
             'col_open': '<div class="{value}">',
@@ -115,7 +118,7 @@ class GridConf:
             'col_class_last': '',
         },
         # TODO: ...
-        'skeleton': {
+        SKELETON_PROFILE: {
             'row_open': '<div class="">',
             'row_close': '</div>',
             'col_open': '<div class="">',
@@ -128,7 +131,7 @@ class GridConf:
             'col_class_last': '',
         },
         # TODO: ...
-        '960gs': {
+        GS960_PROFILE: {
             'row_open': '<div class="">',
             'row_close': '</div>',
             'col_open': '<div class="">',
@@ -143,21 +146,43 @@ class GridConf:
     }
 
     @staticmethod
-    def get(profile_name=DEFAULT_PROFILE):
+    def get_profile(profile=DEFAULT_PROFILE):
         """Gets the specified configuration profile. Default one
-        will be returned if the profile name is not specified."""
-        name = str(profile_name).lower()
+        will be returned if the profile name is not specified.
+
+        Returns:
+            Python-Markdown extension configuration dictionary
+            with the following structure:
+
+                { parameter: [value, description] }
+
+            In addition to the explicitly specified parameters
+            from _profiles dictionary, there always will be 'profile'
+            containing the profile name.
+        """
+
+        prfname = str(profile).lower()
 
         try:
-            conf = dict(GridConf.PROFILES[name])
-            # Profile name presence is guaranteed
-            conf = {'name': name}
+            conf = dict(GridConf._profiles[prfname])
+            conf = {'profile': prfname}
+
             for param in conf:
-                conf[param] = [conf[param], GridConf.DESCRIPTIONS[param]]
+                conf[param] = [conf[param], GridConf._desc[param]]
+
             return conf
 
         except:
-            raise Exception("Error getting configuration profile: " + name)
+            raise Exception("Error getting configuration profile: " + prfname)
+
+    @staticmethod
+    def get_param(profile, param):
+        try:
+            return GridConf._profiles[profile][param]
+
+        except:
+            raise Exception("Error getting config " \
+                "parameter '%s.%s'" % (profile, param))
 
 
 class Parsers:
@@ -184,7 +209,7 @@ class Parsers:
 
         def expand(matches):
             """Expands a single span:offset group."""
-            sc = GridConf.PROFILES['bootstrap']['col_span_class']
+            sc = GridConf.get_param(GridConf.BOOTSTRAP_PRF, 'col_span_class')
             span = sc.format(value=matches.group(1))
 
             oc = GridConf.PROFILES['bootstrap']['col_offset_class']
@@ -354,7 +379,7 @@ class GridExtension(markdown.Extension):
     """Markdown extension class."""
 
     def __init__(self, configs):
-        self.config = GridConf.get()
+        self.config = GridConf.get_profile()
 
         if configs:
             # Overriding default configuration
