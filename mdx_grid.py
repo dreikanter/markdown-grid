@@ -68,7 +68,7 @@ class Patterns:
     re_flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
     # Grid markers
-    row_open = re.compile(r"^\s*--\s*row\s*([\d\s,]*)\s*--\s*$", flags=re_flags)
+    row_open = re.compile(r"^\s*--\s*row\s*([a-z\d,-_\:\s]*)\s*--\s*$", flags=re_flags)
     row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=re_flags)
     col_sep = re.compile(r"^\s*--\s*$", flags=re_flags)
 
@@ -82,8 +82,7 @@ class Patterns:
     tag = re.compile(r"\s*<!--grid\:(.*)-->\s*")
 
     # Syntax sugar to specify Bootstrap's span/offset classes
-    re_spnoff = re.compile(r"(\d+)(\s*\:\s*(\d+))?")
-
+    re_spnoff = re.compile(r"^\s*(\d+)(\s*\:\s*(\d+))?\s*$")
 
 class GridConf:
     """Extension configuration profiles container for common
@@ -149,7 +148,7 @@ class Parsers:
         """
 
         def expand(matches):
-            s = matches.group(0)
+            s = matches.group(1)
             o = matches.group(3)
             return 'span' + str(s) + ((' offset' + o) if o else '')
 
@@ -177,58 +176,11 @@ class Parsers:
         """
 
         args = str(arguments).split(Parsers.DEFAULT_SEPARATOR)
-        args = filter(None, [' '.join(arg.split()) for arg in args])
-        is_bs = profile == GridConf.BOOTSTRAP['name']
+        args = [' '.join(arg.split()) for arg in args]
+        if len(args) == 1 and not args[0]:
+            args = []
+        is_bs = (profile == GridConf.BOOTSTRAP['name'])
         return [Parsers.expand_shortcuts(arg, is_bs) for arg in args]
-
-    # @staticmethod
-    # def parse_int(value, default=0):
-    #     """Attempts to parse a positive integer from a string.
-    #     Returns default value in case of parsing error or negative result."""
-
-    #     try:
-    #         return int(value)
-    #     except:
-    #         return default
-
-    # @staticmethod
-    # def parse_csints(csv_str, separator=DEFAULT_SEPARATOR):
-    #     """Parses a string of comma-separated integers to a list."""
-    #     return filter(lambda x: x != None, [Parsers.parse_int(x, None) for x in csv_str.split(separator)])
-
-    # @staticmethod
-    # def parse_spanoffset(value, separator=SECONDARY_SEPARATOR):
-    #     """Parses coupled span:offset string and returns a list of two ints.
-    #     If the offset is omitted, the second value will be zero."""
-    #     result = value.split(separator)
-    #     return [Parsers.parse_int(result[0], None), Parsers.parse_int(result[1]) if len(result) > 1 else 0]
-
-    # @staticmethod
-    # def parse_row_params(param_str, separator=DEFAULT_SEPARATOR):
-    #     """Parses a row parameters string.
-
-    #     Usage:
-    #         >>> widths, offsets = parse_row_params('4, 2:2, 3:1')
-    #         >>> widths
-    #         [1, 2, 2]
-    #         >>> offsets
-    #         [0, 2, 1]
-
-
-
-    #     """
-    #     widths = []
-    #     offsets = []
-
-    #     def populate(span, offset):
-    #         if span != None:
-    #             widths.append(span)
-    #             offsets.append(offset)
-
-    #     map(lambda span_offset: populate(span_offset[0], span_offset[1]),
-    #         [Parsers.parse_spanoffset(value) for value in param_str.split(separator)])
-
-    #     return widths, offsets
 
 
 class GridCmdInfo:
