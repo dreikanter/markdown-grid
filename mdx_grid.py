@@ -32,6 +32,16 @@ __status__ = "Development"
 __url__ = "http://github.com/dreikanter/markdown-grid"
 
 
+# Extension configuration profile names
+BOOTSTRAP_PROFILE = 'bootstrap'
+SKELETON_PROFILE = 'skeleton'
+GS960_PROFILE = '960gs'
+
+# Default configuration profile name. Will be used by the extension
+# if custom configuration is not specified.
+DEFAULT_PROFILE = BOOTSTRAP_PROFILE
+
+
 class GridCmd:
     """Grid commands."""
 
@@ -61,7 +71,8 @@ class Patterns:
     _flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
     # Grid markers
-    row_open = re.compile(r"^\s*--\s*row\s*([a-z\d,-_\:\s]*)\s*--\s*$", flags=_flags)
+    row_open = re.compile(r"^\s*--\s*row\s*([a-z\d,-_\:\s]*)\s*--\s*$",
+                          flags=_flags)
     row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=_flags)
     col_sep = re.compile(r"^\s*--\s*$", flags=_flags)
 
@@ -81,15 +92,16 @@ class Patterns:
 class GridConf:
     """Predefined configuration profiles for common HTML/CSS frameworks."""
 
-    BOOTSTRAP_PROFILE = 'bootstrap'
-    SKELETON_PROFILE = 'skeleton'
-    GS960_PROFILE = '960gs'
+    # A complete sete of configuration parameters with no values.
+    # Used to complement user-defined profiles.
+    _blank = 'blank'
 
-    DEFAULT_PROFILE = BOOTSTRAP_PROFILE
+    # Name for user-defined profiles.
+    _custom = 'custom'
 
     # Configuration parameters description
     _desc = {
-        'name': 'Configuration profile name',
+        'profile': 'Configuration profile name',
         'row_open': 'Grid row opening',
         'row_close': 'Grid row closing',
         'col_open': 'Column opening',
@@ -105,6 +117,18 @@ class GridConf:
     }
 
     _profiles = {
+        _blank: {
+            'row_open': '',
+            'row_close': '',
+            'col_open': '',
+            'col_close': '',
+            'col_span_class': '',
+            'col_offset_class': '',
+            'default_col_class': '',
+            'common_col_class': '',
+            'col_class_first': '',
+            'col_class_last': '',
+        },
         BOOTSTRAP_PROFILE: {
             'row_open': '<div class="row">',
             'row_close': '</div>',
@@ -118,37 +142,18 @@ class GridConf:
             'col_class_last': '',
         },
         # TODO: ...
-        SKELETON_PROFILE: {
-            'row_open': '<div class="">',
-            'row_close': '</div>',
-            'col_open': '<div class="">',
-            'col_close': '</div>',
-            'col_span_class': '',
-            'col_offset_class': '',
-            'default_col_class': '',
-            'common_col_class': '',
-            'col_class_first': '',
-            'col_class_last': '',
-        },
+        SKELETON_PROFILE: {},
         # TODO: ...
-        GS960_PROFILE: {
-            'row_open': '<div class="">',
-            'row_close': '</div>',
-            'col_open': '<div class="">',
-            'col_close': '</div>',
-            'col_span_class': '',
-            'col_offset_class': '',
-            'default_col_class': '',
-            'common_col_class': '',
-            'col_class_first': '',
-            'col_class_last': '',
-        },
+        GS960_PROFILE: {},
     }
 
     @staticmethod
-    def get_profile(profile=DEFAULT_PROFILE):
-        """Gets the specified configuration profile. Default one
-        will be returned if the profile name is not specified.
+    def get_profile(profile=None):
+        """Gets predefined configuration profile specified by name.
+
+        Arguments:
+            profile -- one of the standard profile names. It's recomended
+                to use *_PROFILE constants here against string values.
 
         Returns:
             Python-Markdown extension configuration dictionary
@@ -161,28 +166,73 @@ class GridConf:
             containing the profile name.
         """
 
-        prfname = str(profile).lower()
+        profile = str(profile) if profile else DEFAULT_PROFILE
 
         try:
-            conf = dict(GridConf._profiles[prfname])
-            conf = {'profile': prfname}
-
-            for param in conf:
-                conf[param] = [conf[param], GridConf._desc[param]]
-
-            return conf
-
+            return GridConf.describe(profile, GridConf._profiles[profile])
         except:
-            raise Exception("Error getting configuration profile: " + prfname)
+            raise Exception("Error getting config profile: " + profile)
 
     @staticmethod
     def get_param(profile, param):
         try:
             return GridConf._profiles[profile][param]
-
         except:
             raise Exception("Error getting config " \
                 "parameter '%s.%s'" % (profile, param))
+
+    @staticmethod
+    def purify(config, default=DEFAULT_PROFILE):
+        """Complements user-specified configuration dict with unspecified
+        parameters to keep configuration profile complete.
+
+        Arguments:
+            config -- custom configuration profile dictionary {param: value}
+            default -- default profile name to return if specified
+                configuration dict is empty.
+                Default value is DEFAULT_PROFILE.
+
+        Returns:
+            The original dictionary data completed with undefined parameters
+            (if any) initialized with _blank values. The dictionary
+            values will be complemented by standard description according
+            to the python-markdown configuration standard:
+
+                { parameter: [value, description] }
+
+            If no configuration specified default will be returned."""
+
+        if not config:
+            return GridConf.get_profile(default)
+
+        profile = dict(GridConf._profiles[GridConf._blank])
+        profile.update(config)
+        return GridConf.purify(GridConf._custom, profile)
+
+    @staticmethod
+    def describe(name, profile):
+        """Complements configuration dictionary with standard descriptions
+        according to Python-Markdown standard.
+
+        Arguments:
+            name -- configuration profile name.
+            profile -- configuration dictionary.
+
+        Returns:
+            The original configuration dictionary complemented with
+            'profile' value to keep the profile name and description
+            for each value which have no description already:
+
+                {param: value} will become {param: [value, description]}
+                {param: [value, description]} will stay as is."""
+
+        conf = dict(profile)
+        conf['profile'] = name
+
+        for param in conf:
+            conf[param] = [conf[param], GridConf._desc.get(param, '')]
+
+        return conf
 
 
 class Parsers:
@@ -195,8 +245,8 @@ class Parsers:
         """Expand span/offset shortcuts for bootstrap.
 
         Arguments:
-          - arg - argument string to process.
-          - is_bs - True if current configuration profile is Bootstrap.
+            arg -- argument string to process.
+            is_bs -- True if current configuration profile is Bootstrap.
 
         Usage:
             >>> expand_shortcuts('4:1', True)
@@ -209,10 +259,10 @@ class Parsers:
 
         def expand(matches):
             """Expands a single span:offset group."""
-            sc = GridConf.get_param(GridConf.BOOTSTRAP_PRF, 'col_span_class')
+            sc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_span_class')
             span = sc.format(value=matches.group(1))
 
-            oc = GridConf.PROFILES['bootstrap']['col_offset_class']
+            oc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_offset_class')
             offset = matches.group(3)
 
             return (span + ' ' + oc.format(value=offset)) if offset else span
@@ -229,9 +279,9 @@ class Parsers:
         list will be returned.
 
         Arguments:
-          - arguments - comma-separated string of arguments.
-          - profile   - configuration profile name which affects
-                        framework-specific parsing options.
+            arguments -- comma-separated string of arguments.
+            profile -- configuration profile name which affects
+                framework-specific parsing options.
 
         Usage:
             >>> Parsers.parse_row_args("span4 offset4, span4, span2")
@@ -270,9 +320,9 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         """Parses mardown source.
 
         Arguments:
-            - lines   - markdown source as a list of text lines.
-            - profile - configuration profile name which affects
-                        framework-specific parsing options.
+            lines -- markdown source as a list of text lines.
+            profile -- configuration profile name which affects
+                framework-specific parsing options.
 
         Returns:
             A three-item tuple:
@@ -358,7 +408,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
     def run(self, lines):
         """Main preprocessor method."""
-        profile = self.get_conf('name')
+        profile = self.get_conf('profile')
         rows, cmds, r2c = GridPreprocessor.parse_markers(lines, profile)
         style = self.get_conf('default_col_style')
         cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, style)
@@ -379,11 +429,10 @@ class GridExtension(markdown.Extension):
     """Markdown extension class."""
 
     def __init__(self, configs):
-        self.config = GridConf.get_profile()
-
-        if configs:
-            # Overriding default configuration
-            self.config.update(configs)
+        if isinstance(configs, list):
+            self.config = GridConf.purify(configs)
+        else:
+            self.config = GridConf.get_profile(configs)
 
     def extendMarkdown(self, md, md_globals):
         """Initializes markdown extension components."""

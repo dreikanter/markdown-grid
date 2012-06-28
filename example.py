@@ -25,6 +25,6 @@ save("example-1.html", md.convert(text))
 
 # Case #2: Using existing extension instance with custom configuration
 text = load("example-2.md")
-gridext = mdx_grid.GridExtension(configs=mdx_grid.GridConf.get('skeleton'))
+gridext = mdx_grid.GridExtension(configs=mdx_grid.SKELETON_PROFILE)
 md = markdown.Markdown(extensions=[gridext])
 save("example-2.html", md.convert(text))

@@ -115,9 +115,13 @@ Bootstrap):
 
 ## TODO
 
-* Preprocessor
+* ~~Preprocessor~~
 * Postprocessor
-* Configuration
+* ~~Configuration~~
 * Packaging
 * ~~Readme: processing example~~
 * Example: configuration for Skeleton
+* Add CSS class short aliases to configuration profiles
+* Implement Bootstrap row arguments syntax through aliases
+* Skeleton profile
+* 960GS profile
