@@ -250,7 +250,7 @@ class Parsers:
         return [Parsers.expand_shortcuts(arg, is_bs) for arg in args]
 
 
-class GridCmdInfo:
+class Command:
     """Grid command representation."""
 
     def __init__(self, value):
@@ -304,20 +304,20 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 args = matches.group(1) if matches.groups() else ""
                 rows[line_num] = Parsers.parse_row_args(args, profile)
                 r2c[row_stack[-1]] = [line_num]
-                cmds[line_num] = [GridCmdInfo(ROW_OPEN_CMD),
-                                  GridCmdInfo(COL_OPEN_CMD)]
+                cmds[line_num] = [Command(ROW_OPEN_CMD),
+                                  Command(COL_OPEN_CMD)]
 
             elif Patterns.row_close.match(line):
                 # Got --end-- which means </col></row>
-                cmds[line_num] = [GridCmdInfo(COL_CLOSE_CMD),
-                                  GridCmdInfo(ROW_CLOSE_CMD)]
+                cmds[line_num] = [Command(COL_CLOSE_CMD),
+                                  Command(ROW_CLOSE_CMD)]
                 row_stack.pop()
 
             elif Patterns.col_sep.match(line):
                 # Got -- which means </col><col>
                 r2c[row_stack[-1]].append(line_num)
-                cmds[line_num] = [GridCmdInfo(COL_CLOSE_CMD),
-                                  GridCmdInfo(COL_OPEN_CMD)]
+                cmds[line_num] = [Command(COL_CLOSE_CMD),
+                                  Command(COL_OPEN_CMD)]
 
             else:
                 # Other lines are irrelevant
@@ -326,8 +326,8 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         closure = []
         # Closing columns and rows if the stack is still not empty
         while row_stack:
-            closure.append(GridCmdInfo(COL_CLOSE_CMD))
-            closure.append(GridCmdInfo(ROW_CLOSE_CMD))
+            closure.append(Command(COL_CLOSE_CMD))
+            closure.append(Command(ROW_CLOSE_CMD))
             row_stack.pop()
 
         return rows, cmds, r2c, closure

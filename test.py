@@ -16,20 +16,20 @@ class GridPreprocessorTest(unittest.TestCase):
         return
 
     def test_cmd_matches(self):
-        cmd = mdx_grid.GridCmdInfo(mdx_grid.GridCmd.ROW_OPEN)
+        cmd = mdx_grid.Command(mdx_grid.ROW_OPEN_CMD)
         matches = mdx_grid.Patterns.row_open_cmd.match(str(cmd))
         self.assertTrue(matches)
 
-        cmd = mdx_grid.GridCmdInfo(mdx_grid.GridCmd.COL_OPEN)
+        cmd = mdx_grid.Command(mdx_grid.COL_OPEN_CMD)
         cmd.style = Helpers.get_rand()
         matches = mdx_grid.Patterns.col_open_cmd.match(str(cmd))
         self.assertTrue(matches)
 
-        cmd = str(mdx_grid.GridCmdInfo(mdx_grid.GridCmd.COL_CLOSE))
+        cmd = str(mdx_grid.Command(mdx_grid.COL_CLOSE_CMD))
         matches = mdx_grid.Patterns.col_close_cmd.match(str(cmd))
         self.assertTrue(matches)
 
-        cmd = str(mdx_grid.GridCmdInfo(mdx_grid.GridCmd.ROW_CLOSE))
+        cmd = str(mdx_grid.Command(mdx_grid.ROW_CLOSE_CMD))
         matches = mdx_grid.Patterns.row_close_cmd.match(str(cmd))
         self.assertTrue(matches)
 
@@ -68,7 +68,7 @@ class ParsersTest(unittest.TestCase):
         ]
 
         for args, profile, result in test_values:
-            cmd = mdx_grid.GridCmdInfo(mdx_grid.GridCmd.ROW_OPEN)
+            cmd = mdx_grid.Command(mdx_grid.ROW_OPEN_CMD)
             cmd.style = args
 
             marker = "--%s %s--" % (str(cmd), args)
