@@ -90,7 +90,22 @@ class Patterns:
 
 
 class GridConf:
-    """Predefined configuration profiles for common HTML/CSS frameworks."""
+    """Predefined configuration profiles for common HTML/CSS frameworks.
+
+    Configuration parameters:
+        profile -- Configuration profile name
+        row_open -- Grid row opening
+        row_close -- Grid row closing
+        col_open -- Column opening
+        col_close -- Column opening
+        col_span_class -- Column class. {value} marker will be replaced
+            with span/width value from the markup
+        col_offset_class -- Column offset class. {value} marker will be
+            replaced with span/width value from the markup
+        default_col_class -- Default column class
+        common_col_class -- Common column class
+        col_class_first -- CSS class for the first column in the row
+        col_class_last -- CSS class for the last column in the row"""
 
     # A complete sete of configuration parameters with no values.
     # Used to complement user-defined profiles.
@@ -99,23 +114,7 @@ class GridConf:
     # Name for user-defined profiles.
     _custom = 'custom'
 
-    # Configuration parameters description
-    _desc = {
-        'profile': 'Configuration profile name',
-        'row_open': 'Grid row opening',
-        'row_close': 'Grid row closing',
-        'col_open': 'Column opening',
-        'col_close': """Column opening""",
-        'col_span_class': 'Column class. {value} marker will be replaced ' \
-            'with span/width value from the markup',
-        'col_offset_class': 'Column offset class. {value} marker will be ' \
-            'replaced with span/width value from the markup',
-        'default_col_class': 'Default column class',
-        'common_col_class': 'Common column class',
-        'col_class_first': 'CSS class for the first column in the row',
-        'col_class_last': 'CSS class for the last column in the row',
-    }
-
+    # Predefined configuration profiles.
     _profiles = {
         _blank: {
             'row_open': '',
@@ -148,33 +147,29 @@ class GridConf:
     }
 
     @staticmethod
-    def get_profile(profile=None):
+    def get_profile(name=None):
         """Gets predefined configuration profile specified by name.
 
         Arguments:
-            profile -- one of the standard profile names. It's recomended
+            name -- one of the standard profile names. It's recomended
                 to use *_PROFILE constants here against string values.
 
         Returns:
-            Python-Markdown extension configuration dictionary
-            with the following structure:
+            Extension configuration dictionary."""
 
-                { parameter: [value, description] }
-
-            In addition to the explicitly specified parameters
-            from _profiles dictionary, there always will be 'profile'
-            containing the profile name.
-        """
-
-        profile = str(profile) if profile else DEFAULT_PROFILE
+        name = str(name) if name else DEFAULT_PROFILE
 
         try:
-            return GridConf.describe(profile, GridConf._profiles[profile])
-        except:
-            raise Exception("Error getting config profile: " + profile)
+            profile = dict(GridConf._profiles[name])
+            profile['profile'] = name
+            return profile
+        except Exception as e:
+            raise Exception("Error getting config profile: " + name, e)
 
     @staticmethod
     def get_param(profile, param):
+        """Gets a single configuration parameter
+        for one ofpredefined profiles."""
         try:
             return GridConf._profiles[profile][param]
         except:
@@ -182,57 +177,61 @@ class GridConf:
                 "parameter '%s.%s'" % (profile, param))
 
     @staticmethod
-    def purify(config, default=DEFAULT_PROFILE):
+    def purify(config):
         """Complements user-specified configuration dict with unspecified
         parameters to keep configuration profile complete.
 
         Arguments:
-            config -- custom configuration profile dictionary {param: value}
-            default -- default profile name to return if specified
-                configuration dict is empty.
-                Default value is DEFAULT_PROFILE.
+            config -- custom configuration profile dictionary {param: value}.
 
         Returns:
             The original dictionary data completed with undefined parameters
-            (if any) initialized with _blank values. The dictionary
-            values will be complemented by standard description according
-            to the python-markdown configuration standard:
+            (if any) initialized with _blank values.
 
-                { parameter: [value, description] }
+            If no configuration specified default will be returned instead
+            of a dictionary filled with blank values.
 
-            If no configuration specified default will be returned."""
+            In addition to the explicitly specified parameters,
+            there always will be 'profile' containing the profile name."""
 
         if not config:
-            return GridConf.get_profile(default)
+            return GridConf.get_profile()
 
         profile = dict(GridConf._profiles[GridConf._blank])
-        profile.update(config)
-        return GridConf.purify(GridConf._custom, profile)
+        profile.update(dict(config))
+        profile['profile'] = GridConf._custom
 
-    @staticmethod
-    def describe(name, profile):
-        """Complements configuration dictionary with standard descriptions
-        according to Python-Markdown standard.
+        return profile
 
-        Arguments:
-            name -- configuration profile name.
-            profile -- configuration dictionary.
 
-        Returns:
-            The original configuration dictionary complemented with
-            'profile' value to keep the profile name and description
-            for each value which have no description already:
+    # @staticmethod
+    # def describe(name, profile):
+    #     """Complements configuration dictionary with standard descriptions
+    #     according to Python-Markdown standard.
 
-                {param: value} will become {param: [value, description]}
-                {param: [value, description]} will stay as is."""
+    #     Arguments:
+    #         name -- configuration profile name.
+    #         profile -- configuration dictionary.
 
-        conf = dict(profile)
-        conf['profile'] = name
+    #     Returns:
+    #         The original configuration dictionary complemented with
+    #         'profile' value to keep the profile name and description
+    #         for each value which have no description already:
 
-        for param in conf:
-            conf[param] = [conf[param], GridConf._desc.get(param, '')]
+    #             {param: value} will become {param: [value, description]}
+    #             {param: [value, description]} will stay as is."""
 
-        return conf
+    #     conf = dict(profile)
+    #     conf['profile'] = name
+
+    #     for param in conf:
+    #         conf[param] = [conf[param], GridConf._desc.get(param, '')]
+
+    #     # from pprint import pprint
+    #     # pprint(conf)
+    #     # print('--------------')
+
+    #     return conf
 
 
 class Parsers:
@@ -333,9 +332,9 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             3. Row to column mapping: row marker line => [column lines]"""
 
         row_stack = []  # Rows stack. Each item contains row marker line number
-        rows = {}       # Rows mapping (result tuple item 1)
-        cmds = {}       # Commands mapping (2)
-        r2c = {}        # Row to column mapping (3)
+        rows = {}       # Rows mapping (first item from the result tuple)
+        cmds = {}       # Commands mapping (second one)
+        r2c = {}        # Row to column mapping (third)
 
         for line_num in range(len(lines)):
             line = lines[line_num]
@@ -370,8 +369,8 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         if row_stack:
             # Closing columns and rows if the stack is still not empty
             while row_stack:
-                cmds[-1].append([GridCmdInfo(GridCmd.COL_CLOSE),
-                                 GridCmdInfo(GridCmd.ROW_CLOSE)])
+                cmds[max(cmds.keys())].append([GridCmdInfo(GridCmd.COL_CLOSE),
+                                               GridCmdInfo(GridCmd.ROW_CLOSE)])
                 row_stack.pop()
 
         return rows, cmds, r2c
@@ -401,8 +400,9 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         return lines
 
     def get_conf(self, key):
+        """Gets configuration parameter value."""
         if key in self.config:
-            return self.config[key][0]
+            return self.config[key]
         else:
             return None
 

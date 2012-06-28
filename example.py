@@ -2,29 +2,42 @@
 
 """Markdown Grid Extension demo"""
 
-import codecs
+import sys
+import glob
+import os.path
 import markdown
 import mdx_grid
 
 
-def save(file_name, text):
-    with codecs.open(file_name, mode="w", encoding="utf8") as f:
-        f.write(text)
+for fname in glob.glob('./examples/*.md'):
+    sys.stdout.write("Processing '%s'... " % os.path.basename(fname))
 
+    # Case #1: Using default configuration (Twitter Bootstrap)
+    md = markdown.Markdown(extensions=['grid'])
+    md.convertFile(fname, output=fname + '.bootstrap.html', encoding='utf8')
 
-def load(file_name):
-    with codecs.open(file_name, mode="r", encoding="utf8") as f:
-        return f.read()
+    # Case #2: Using one of the predefined alternative configuration profiles
+    conf = mdx_grid.GridConf.get_profile(mdx_grid.SKELETON_PROFILE)
+    md = markdown.Markdown(extensions=['grid'],
+                           extension_configs={'grid': conf})
+    md.convertFile(fname, output=fname + '.skeleton.html', encoding='utf8')
 
+    # Case #3: Using custom extension configuration profile
+    conf = {
+        'row_open': '<div class="custom-row">',
+        'row_close': '</div>',
+        'col_open': '<div class="{value}">',
+        'col_close': '</div>',
+        'col_span_class': 'custom-span{value}',
+        'col_offset_class': 'custom-offset{value}',
+        'default_col_class': 'default-span',
+        'common_col_class': 'common-col',
+        'col_class_first': 'first',
+        'col_class_last': 'last',
+    }
+    gridext = mdx_grid.GridExtension(configs=mdx_grid.SKELETON_PROFILE)
+    md = markdown.Markdown(extensions=['grid'],
+                           extension_configs={'grid': conf})
+    md.convertFile(fname, output=fname + '.custom.html', encoding='utf8')
 
-# Case #1: Adding extension by name
-text = load("example-1.md")
-md = markdown.Markdown(extensions=['grid'])
-save("example-1.html", md.convert(text))
-
-
-# Case #2: Using existing extension instance with custom configuration
-text = load("example-2.md")
-gridext = mdx_grid.GridExtension(configs=mdx_grid.SKELETON_PROFILE)
-md = markdown.Markdown(extensions=[gridext])
-save("example-2.html", md.convert(text))
+    print("Done.")

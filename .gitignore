@@ -3,5 +3,4 @@ dist
 build
 bin
 sdist
-example*.html
-tmp_*
+example/*.html
