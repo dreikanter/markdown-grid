@@ -271,7 +271,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
     """Markdown preprocessor."""
 
     @staticmethod
-    def parse_markers(lines, profile=None):
+    def parse(lines, profile=None):
         """Parses mardown source.
 
         Arguments:
@@ -285,7 +285,8 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             1. Rows mapping: row marker line => [column CSS classes]
                (each item could contain a set of space-separated class names)
             2. Grid commands mapping: marker line => [grid commands]
-            3. Row to column mapping: row marker line => [column lines]"""
+            3. Row to column mapping: row marker line => [column lines]
+            4. Closure commands - an additional set of """
 
         row_stack = []  # Rows stack. Each item contains row marker line number
         rows = {}       # Rows mapping (first item from the result tuple)
@@ -322,49 +323,49 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 # Other lines are irrelevant
                 pass
 
-        if row_stack:
-            # Closing columns and rows if the stack is still not empty
-            while row_stack:
-                cmds[max(cmds.keys())].append([GridCmdInfo(COL_CLOSE_CMD),
-                                               GridCmdInfo(ROW_CLOSE_CMD)])
-                row_stack.pop()
+        closure = []
+        # Closing columns and rows if the stack is still not empty
+        while row_stack:
+            closure.append(GridCmdInfo(COL_CLOSE_CMD))
+            closure.append(GridCmdInfo(ROW_CLOSE_CMD))
+            row_stack.pop()
 
-        # TODO: Fix this:
-        #   (u'endcol;endrow;[<mdx_grid.GridCmdInfo instance at 0x023E05A8>, <mdx_grid.GridCmdInfo instance at 0x023E05D0>]',)
-
-        return rows, cmds, r2c
+        return rows, cmds, r2c, closure
 
     @staticmethod
-    def populate_cmd_params(rows, cmds, r2c, def_col_style=""):
+    def populate_cmd_params(rows, cmds, r2c, def_style=""):
         """Returns a line number to grid commands mapping."""
         for row_line_num in rows:
             styles = rows[row_line_num][::-1]
             for col_line_num in r2c[row_line_num]:
                 for cmd in cmds[col_line_num]:
                     if cmd.value == COL_OPEN_CMD:
-                        cmd.style = styles.pop() if styles else def_col_style
+                        cmd.style = styles.pop() if styles else def_style
                         break
         return cmds
 
     @staticmethod
+    def get_tag(commands):
+        """Generates a preprocessor tag from a set of grid commands."""
+        # Extra line break prevents generation of unclosed paragraphs
+        return "\n<!--grid:%s-->" % ';'.join([str(cmd) for cmd in commands])
+
+    @staticmethod
     def replace_markers(lines, cmds):
         """Replace grid markers with tags."""
-        for line_num in cmds:
-            commands = [str(command) for command in cmds[line_num]]
-            commands = ';'.join(commands)
-
-            # Extra line break prevents generation of unclosed paragraphs
-            lines[line_num] = "\n<!--grid:%s-->" % commands
-
+        for line in cmds:
+            lines[line] = GridPreprocessor.get_tag(cmds[line])
         return lines
 
     def run(self, lines):
         """Main preprocessor method."""
         profile = self.get_conf('profile')
-        rows, cmds, r2c = GridPreprocessor.parse_markers(lines, profile)
-        style = self.get_conf('default_col_class')
-        cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, style)
+        rows, cmds, r2c, closure = GridPreprocessor.parse(lines, profile)
+        def_style = self.get_conf('default_col_class')
+        cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, def_style)
         result = GridPreprocessor.replace_markers(lines, cmds)
+        if closure:
+            result.append(GridPreprocessor.get_tag(closure))
         return result
 
 
@@ -385,7 +386,7 @@ class GridPostprocessor(markdown.postprocessors.Postprocessor):
 
         commands = matches.group(1).split(';')
         html = ''.join([GridPostprocessor.markup(cmd) for cmd in commands])
-        return html
+        return '\n%s\n' % html
 
     def run(self, text):
         return Patterns.tag.sub(GridPostprocessor.expand_tag, text)
