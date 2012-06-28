@@ -41,28 +41,10 @@ GS960_PROFILE = '960gs'
 # if custom configuration is not specified.
 DEFAULT_PROFILE = BOOTSTRAP_PROFILE
 
-
-class GridCmd:
-    """Grid commands."""
-
-    ROW_OPEN = 0
-    ROW_CLOSE = 1
-    COL_OPEN = 2
-    COL_CLOSE = 3
-
-    _names = {
-        ROW_OPEN: "row",
-        ROW_CLOSE: "endrow",
-        COL_OPEN: "col",
-        COL_CLOSE: "endcol",
-    }
-
-    @staticmethod
-    def get_name(cmdtype):
-        try:
-            return GridCmd._names[cmdtype]
-        except:
-            raise Exception("Unknown tag type specified.")
+ROW_OPEN_CMD = "row"
+ROW_CLOSE_CMD = "endrow"
+COL_OPEN_CMD = "col"
+COL_CLOSE_CMD = "endcol"
 
 
 class Patterns:
@@ -271,14 +253,18 @@ class Parsers:
 class GridCmdInfo:
     """Grid command representation."""
 
-    def __init__(self, cmdtype):
-        self.cmdtype = cmdtype
+    def __init__(self, value):
+        self.value = value
 
     def __str__(self):
         """Generates text representation for a grid command."""
-        is_col = self.cmdtype == GridCmd.COL_OPEN
-        params = ("(%s)" % getattr(self, 'style', '')) if is_col else ''
-        return GridCmd.get_name(self.cmdtype) + params
+        return self.value + self.get_params()
+
+    def get_params(self):
+        if self.value == COL_OPEN_CMD:
+            return '(%s)' % getattr(self, 'style', '')
+        else:
+            return ''
 
 
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
@@ -317,20 +303,20 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 args = matches.group(1) if matches.groups() else ""
                 rows[line_num] = Parsers.parse_row_args(args, profile)
                 r2c[row_stack[-1]] = [line_num]
-                cmds[line_num] = [GridCmdInfo(GridCmd.ROW_OPEN),
-                                  GridCmdInfo(GridCmd.COL_OPEN)]
+                cmds[line_num] = [GridCmdInfo(ROW_OPEN_CMD),
+                                  GridCmdInfo(COL_OPEN_CMD)]
 
             elif Patterns.row_close.match(line):
                 # Got --end-- which means </col></row>
-                cmds[line_num] = [GridCmdInfo(GridCmd.COL_CLOSE),
-                                  GridCmdInfo(GridCmd.ROW_CLOSE)]
+                cmds[line_num] = [GridCmdInfo(COL_CLOSE_CMD),
+                                  GridCmdInfo(ROW_CLOSE_CMD)]
                 row_stack.pop()
 
             elif Patterns.col_sep.match(line):
                 # Got -- which means </col><col>
                 r2c[row_stack[-1]].append(line_num)
-                cmds[line_num] = [GridCmdInfo(GridCmd.COL_CLOSE),
-                                  GridCmdInfo(GridCmd.COL_OPEN)]
+                cmds[line_num] = [GridCmdInfo(COL_CLOSE_CMD),
+                                  GridCmdInfo(COL_OPEN_CMD)]
 
             else:
                 # Other lines are irrelevant
@@ -339,12 +325,11 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         if row_stack:
             # Closing columns and rows if the stack is still not empty
             while row_stack:
-                cmds[max(cmds.keys())].append([GridCmdInfo(GridCmd.COL_CLOSE),
-                                               GridCmdInfo(GridCmd.ROW_CLOSE)])
+                cmds[max(cmds.keys())].append([GridCmdInfo(COL_CLOSE_CMD),
+                                               GridCmdInfo(ROW_CLOSE_CMD)])
                 row_stack.pop()
 
         # TODO: Fix this:
-        #   (u'endcol;col(None)',)
         #   (u'endcol;endrow;[<mdx_grid.GridCmdInfo instance at 0x023E05A8>, <mdx_grid.GridCmdInfo instance at 0x023E05D0>]',)
 
         return rows, cmds, r2c
@@ -356,7 +341,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             styles = rows[row_line_num][::-1]
             for col_line_num in r2c[row_line_num]:
                 for cmd in cmds[col_line_num]:
-                    if cmd.cmdtype == GridCmd.COL_OPEN:
+                    if cmd.value == COL_OPEN_CMD:
                         cmd.style = styles.pop() if styles else def_col_style
                         break
         return cmds
@@ -377,7 +362,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
         """Main preprocessor method."""
         profile = self.get_conf('profile')
         rows, cmds, r2c = GridPreprocessor.parse_markers(lines, profile)
-        style = self.get_conf('default_col_style')
+        style = self.get_conf('default_col_class')
         cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, style)
         result = GridPreprocessor.replace_markers(lines, cmds)
         return result
