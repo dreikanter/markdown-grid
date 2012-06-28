@@ -120,8 +120,17 @@ Bootstrap):
 * ~~Configuration~~
 * Packaging
 * ~~Readme: processing example~~
-* Example: configuration for Skeleton
+* ~~Example: configuration for Skeleton~~
+* ~~Example for incomplete markup~~
 * Add CSS class short aliases to configuration profiles
 * Implement Bootstrap row arguments syntax through aliases
+* Drop unnecessary configuration params after aliases implementation
 * Skeleton profile
 * 960GS profile
+* Incomplete markup processing
+* Postprocessor test coverage
+* Module docstring
+* Python 3 compatibility
+* Fix 'Nones' in command parameters
+* README: Update examples
+* README: Add a screenshot

@@ -204,36 +204,6 @@ class GridConf:
         return profile
 
 
-    # @staticmethod
-    # def describe(name, profile):
-    #     """Complements configuration dictionary with standard descriptions
-    #     according to Python-Markdown standard.
-
-    #     Arguments:
-    #         name -- configuration profile name.
-    #         profile -- configuration dictionary.
-
-    #     Returns:
-    #         The original configuration dictionary complemented with
-    #         'profile' value to keep the profile name and description
-    #         for each value which have no description already:
-
-    #             {param: value} will become {param: [value, description]}
-    #             {param: [value, description]} will stay as is."""
-
-    #     conf = dict(profile)
-    #     conf['profile'] = name
-
-    #     for param in conf:
-    #         conf[param] = [conf[param], GridConf._desc.get(param, '')]
-
-    #     # from pprint import pprint
-    #     # pprint(conf)
-    #     # print('--------------')
-
-    #     return conf
-
-
 class Parsers:
     """Common helper functions."""
 
@@ -373,6 +343,10 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                                                GridCmdInfo(GridCmd.ROW_CLOSE)])
                 row_stack.pop()
 
+        # TODO: Fix this:
+        #   (u'endcol;col(None)',)
+        #   (u'endcol;endrow;[<mdx_grid.GridCmdInfo instance at 0x023E05A8>, <mdx_grid.GridCmdInfo instance at 0x023E05D0>]',)
+
         return rows, cmds, r2c
 
     @staticmethod
@@ -399,13 +373,6 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
         return lines
 
-    def get_conf(self, key):
-        """Gets configuration parameter value."""
-        if key in self.config:
-            return self.config[key]
-        else:
-            return None
-
     def run(self, lines):
         """Main preprocessor method."""
         profile = self.get_conf('profile')
@@ -419,10 +386,24 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 class GridPostprocessor(markdown.postprocessors.Postprocessor):
     """Markdown postprocessor."""
 
+    @staticmethod
+    def markup(command):
+        # TODO: Process commands
+        # TODO: Unittest
+        return '<%s>' % command
+
+    @staticmethod
+    def expand_tag(matches):
+        # TODO: Unittest
+        if not matches.groups():
+            return ''
+
+        commands = matches.group(1).split(';')
+        html = ''.join([GridPostprocessor.markup(cmd) for cmd in commands])
+        return html
+
     def run(self, text):
-        # TODO: Get HTML markup from configuration
-        # TODO: Replace grid tags with HTML markup
-        return text
+        return Patterns.tag.sub(GridPostprocessor.expand_tag, text)
 
 
 class GridExtension(markdown.Extension):
@@ -437,11 +418,18 @@ class GridExtension(markdown.Extension):
     def extendMarkdown(self, md, md_globals):
         """Initializes markdown extension components."""
         preprocessor = GridPreprocessor(md)
-        preprocessor.config = self.config
+        preprocessor.get_conf = self.get_conf
         md.preprocessors.add('grid', preprocessor, '_begin')
         postprocessor = GridPostprocessor(md)
-        postprocessor.config = self.config
+        preprocessor.get_conf = self.get_conf
         md.postprocessors.add('grid', postprocessor, '_end')
+
+    def get_conf(self, key):
+        """Gets configuration parameter value."""
+        if key in self.config:
+            return self.config[key]
+        else:
+            return None
 
 
 def makeExtension(configs=None):
