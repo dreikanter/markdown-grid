@@ -18,7 +18,7 @@ for fname in glob.glob('./examples/*.md'):
 
     # Case #2: Using one of the predefined alternative configuration profiles
     md = markdown.Markdown(extensions=['grid'],
-                           extension_configs={'grid': mdx_grid.GridConf.get_conf(mdx_grid.SKELETON_PROFILE)})
+                           extension_configs={'grid': mdx_grid.get_conf(mdx_grid.SKELETON_PROFILE)})
     md.convertFile(fname, output=fname + '.skeleton.html', encoding='utf8')
 
     # # Case #2: Using one of the predefined alternative configuration profiles

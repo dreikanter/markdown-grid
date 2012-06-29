@@ -51,6 +51,53 @@ DEFAULT_PROFILE = BOOTSTRAP_PROFILE
 # Used to complement user-defined profiles.
 BLANK_PROFILE = 'blank'
 
+# Predefined configuration profiles. Each profile is a dictionary
+# containing the following values:
+#  - profile -- Configuration profile name
+#  - row_open -- Grid row opening
+#  - row_close -- Grid row closing
+#  - col_open -- Column opening
+#  - col_close -- Column opening
+#  - default_col_class -- Default column class
+#  - col_class_first -- CSS class for the first column in the row
+#  - col_class_last -- CSS class for the last column in the row
+#  - aliases -- a dictionary of regular expressions used to shorten
+#    CSS class names used in row declaration.
+PROFILES = {
+    BLANK_PROFILE: {
+        'profile': '',
+        'row_open': '',
+        'row_close': '',
+        'col_open': '',
+        'col_close': '',
+        'default_col_class': '',
+        'col_class_first': '',
+        'col_class_last': '',
+        'aliases': {},
+    },
+    BOOTSTRAP_PROFILE: {
+        'profile': BOOTSTRAP_PROFILE,
+        'row_open': '<div class="row">',
+        'row_close': '</div>',
+        'col_open': '<div class="{value}">',
+        'col_close': '</div>',
+        'default_col_class': 'span1',
+        'aliases': {
+            r'^\s*(\d+)\s*$': r'span\1',
+            r'^\s*(\d+)\s*\:\s*(\d+)\s*$': r'span\1 offset\2',
+        },
+    },
+    # TODO: ...
+    SKELETON_PROFILE: {
+        'profile': SKELETON_PROFILE,
+    },
+    # TODO: ...
+    GS960_PROFILE: {
+        'profile': GS960_PROFILE,
+    },
+}
+
+
 ROW_OPEN_CMD = "row"
 ROW_CLOSE_CMD = "endrow"
 COL_OPEN_CMD = "col"
@@ -84,178 +131,56 @@ class Patterns:
     re_spnoff = re.compile(r"^\s*(\d+)(\s*\:\s*(\d+))?\s*$")
 
 
-class GridConf:
-    """Predefined configuration profiles for common HTML/CSS frameworks.
+def process_configuration(source_conf):
+    """Gets a valid configuration profile.
 
-    Configuration parameters:
-        profile -- Configuration profile name
-        row_open -- Grid row opening
-        row_close -- Grid row closing
-        col_open -- Column opening
-        col_close -- Column opening
-        default_col_class -- Default column class
-        col_class_first -- CSS class for the first column in the row
-        col_class_last -- CSS class for the last column in the row
-        aliases -- a dictionary of regular expressions used to shorten
-            CSS class names used in row declaration."""
+    Arguments:
+        source_conf -- a dictionary received from the consumer during
+            extension configuration."""
 
-    # Name for user-defined profiles.
-    _custom = 'custom'
+    # Complement the source configuration dictionary with undefined
+    # parameters.
+    conf = get_conf(BLANK_PROFILE)
+    if not source_conf:
+        conf.update(get_conf(DEFAULT_PROFILE))
+    else:
+        conf.update(source_conf)
 
-    # Predefined configuration profiles.
-    _profiles = {
-        BLANK_PROFILE: {
-            'profile': '',
-            'row_open': '',
-            'row_close': '',
-            'col_open': '',
-            'col_close': '',
-            'default_col_class': '',
-            'col_class_first': '',
-            'col_class_last': '',
-            'aliases': {},
-        },
-        BOOTSTRAP_PROFILE: {
-            'profile': BOOTSTRAP_PROFILE,
-            'row_open': '<div class="row">',
-            'row_close': '</div>',
-            'col_open': '<div class="{value}">',
-            'col_close': '</div>',
-            'default_col_class': 'span1',
-            'aliases': {
-                r'^\s*(\d+)\s*$': r'span\1',
-                r'^\s*(\d+)\s*\:\s*(\d+)\s*$': r'span\1 offset\2',
-            },
-        },
-        # TODO: ...
-        SKELETON_PROFILE: {
-            'profile': SKELETON_PROFILE,
-        },
-        # TODO: ...
-        GS960_PROFILE: {
-            'profile': GS960_PROFILE,
-        },
-    }
+    # Updates 'profile' parameter value to 'custom' if it's not
+    # defined.
+    if not conf['profile']:
+        conf['profile'] = 'custom'
 
-    @staticmethod
-    def process_configuration(source_conf):
-        """Gets a valid configuration profile.
+    # 'Aliases' is a replacements dictionary for <row> marker arguments.
+    # During the configuration processing conf['aliases'] value
+    # will be converted from {regex:replacement} dictionary to a list of
+    # (compiled regex, replacement) tuples to simplify further usage.
+    if not isinstance(conf['aliases'], dict):
+        conf['aliases'] = []
+    elif conf['aliases']:
+        cmpl = lambda a: (re.compile(a), conf['aliases'][a])
+        conf['aliases'] = [cmpl(alias) for alias in conf['aliases']]
 
-        Arguments:
-            source_conf -- a dictionary received from the consumer during
-                extension configuration."""
+    return conf
 
-        # Complement the source configuration dictionary with undefined
-        # parameters.
-        conf = GridConf.get_conf(BLANK_PROFILE)
-        if not source_conf:
-            conf.update(GridConf.get_conf(DEFAULT_PROFILE))
-        else:
-            conf.update(source_conf)
 
-        # Updates 'profile' parameter value to 'custom' if it's not
-        # defined.
-        if not conf['profile']:
-            conf['profile'] = 'custom'
+def get_conf(profile_name=DEFAULT_PROFILE):
+    """Gets unprocessed configuration profile.
 
-        # 'Aliases' is a replacements dictionary for <row> marker arguments.
-        # During the configuration processing conf['aliases'] value
-        # will be converted from {regex:replacement} dictionary to a list of
-        # (compiled regex, replacement) tuples to simplify further usage.
-        if not isinstance(conf['aliases'], dict):
-            conf['aliases'] = []
-        elif conf['aliases']:
-            cmpl = lambda a: (re.compile(a), conf['aliases'][a])
-            conf['aliases'] = [cmpl(alias) for alias in conf['aliases']]
+    Arguments:
+        profile_name -- predefined configuration profile name. *_PROFILE
+            constants is strictly recomended to be used here.
 
-        return conf
+    Returns:
+        This function returns a configuration parameters dictionary
+        intended to be used for extension configuration with predefined
+        profiles."""
 
-    @staticmethod
-    def get_conf(profile_name=DEFAULT_PROFILE):
-        """Gets unprocessed configuration profile.
-
-        Arguments:
-            profile_name -- predefined configuration profile name. *_PROFILE
-                constants is strictly recomended to be used here.
-
-        Returns:
-            This function returns a configuration parameters dictionary
-            intended to be used for extension configuration with predefined
-            profiles."""
-
-        try:
-            return GridConf._profiles[profile_name]
-        except Exception as e:
-            message = "Specified configuration profile not exists: '%s'."
-            raise Exception(message % profile_name, e)
-
-    @staticmethod
-    def get_profile(name=None):
-        """Gets predefined configuration profile specified by name.
-
-        Arguments:
-            name -- one of the standard profile names. It's recomended
-                to use *_PROFILE constants here against string values.
-
-        Returns:
-            Extension configuration dictionary."""
-
-        name = str(name) if name else DEFAULT_PROFILE
-
-        try:
-            profile = dict(GridConf._profiles[name])
-            print(profile.keys())
-
-            profile['profile'] = name
-            profile['aliases'] = GridConf.compile_aliases(profile['aliases'])
-            return profile
-        except Exception as e:
-            raise Exception("Error getting config profile: " + name, e)
-
-    @staticmethod
-    def compile_aliases(aliases):
-        """Compiles the dictionary of regular expressions."""
-        result = []
-        for alias in aliases:
-            result.append((re.compile(alias), aliases[alias]))
-        return result
-
-    @staticmethod
-    def get_param(profile, param):
-        """Gets a single configuration parameter
-        for one ofpredefined profiles."""
-        try:
-            return GridConf._profiles[profile][param]
-        except Exception as e:
-            message = "Error getting config parameter %s.%s"
-            raise Exception(message % (profile, param), e)
-
-    @staticmethod
-    def purify(config):
-        """Complements user-specified configuration dict with unspecified
-        parameters to keep configuration profile complete.
-
-        Arguments:
-            config -- custom configuration profile dictionary {param: value}.
-
-        Returns:
-            The original dictionary data completed with undefined parameters
-            (if any) initialized with BLANK_PROFILE values.
-
-            # If no configuration specified default will be returned instead
-            # of a dictionary filled with blank values.
-
-            In addition to the explicitly specified parameters,
-            there always will be 'profile' containing the profile name."""
-
-        # if not config:
-        #     return GridConf.get_profile()
-
-        profile = dict(GridConf._profiles[GridConf.BLANK_PROFILE])
-        profile.update(dict(config))
-        profile['profile'] = GridConf._custom
-
-        return profile
+    try:
+        return PROFILES[profile_name]
+    except Exception as e:
+        message = "Specified configuration profile not exists: '%s'."
+        raise Exception(message % profile_name, e)
 
 
 class Parsers:
@@ -503,7 +428,7 @@ class GridExtension(markdown.Extension):
 
     def __init__(self, configs):
         self.conf = {}
-        self.conf = GridConf.process_configuration(configs)
+        self.conf = process_configuration(configs)
         print('------------')
         pprint(self.conf)
         print('------------')
