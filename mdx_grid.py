@@ -73,7 +73,7 @@ PROFILES = {
         'default_col_class': '',
         'col_class_first': '',
         'col_class_last': '',
-        'aliases': {},
+        'aliases': [],
     },
     BOOTSTRAP_PROFILE: {
         'profile': BOOTSTRAP_PROFILE,
@@ -82,10 +82,10 @@ PROFILES = {
         'col_open': '<div class="{value}">',
         'col_close': '</div>',
         'default_col_class': 'span1',
-        'aliases': {
-            r'^\s*(\d+)\s*$': r'span\1',
-            r'^\s*(\d+)\s*\:\s*(\d+)\s*$': r'span\1 offset\2',
-        },
+        'aliases': [
+            (r'\b(\d+)\:(\d+)\b', r'span\1 offset\2'),
+            (r'\b(\d+)\b', r'span\1'),
+        ],
     },
     # TODO: ...
     SKELETON_PROFILE: {
@@ -151,15 +151,14 @@ def process_configuration(source_conf):
     if not conf['profile']:
         conf['profile'] = 'custom'
 
-    # 'Aliases' is a replacements dictionary for <row> marker arguments.
-    # During the configuration processing conf['aliases'] value
-    # will be converted from {regex:replacement} dictionary to a list of
-    # (compiled regex, replacement) tuples to simplify further usage.
-    if not isinstance(conf['aliases'], dict):
+    # 'Aliases' is a list of replacements for --row-- marker arguments.
+    # Each item contains a tuple of two items: a regex and a replacement
+    # string itself. Regexes will be compiled for further usage.
+    if not isinstance(conf['aliases'], list):
         conf['aliases'] = []
     elif conf['aliases']:
-        cmpl = lambda a: (re.compile(a), conf['aliases'][a])
-        conf['aliases'] = [cmpl(alias) for alias in conf['aliases']]
+        cmpl = lambda a: (re.compile(a[0]), a[1])
+        conf['aliases'] = [cmpl(a) for a in conf['aliases']]
 
     return conf
 
@@ -183,70 +182,37 @@ def get_conf(profile_name=DEFAULT_PROFILE):
         raise Exception(message % profile_name, e)
 
 
-class Parsers:
-    """Common helper functions."""
+def expand_aliases(arg, aliases):
+    for subj, repl in aliases:
+        arg = subj.sub(repl, arg)
+    return arg
 
-    DEFAULT_SEPARATOR = ','
 
-    @staticmethod
-    def expand_shortcuts(arg, is_bs):
-        """Expand span/offset shortcuts for bootstrap.
+def parse_row_args(arguments, aliases=[]):
+    """Parses --row-- arguments from a string.
 
-        Arguments:
-            arg -- argument string to process.
-            is_bs -- True if current configuration profile is Bootstrap.
+    Each row marker contains a set of parameters defining a list of CSS classes
+    for the corresponding column. This function takes a comma-separated string
+    and returns a list of processed values. If there are no arguments, an empty
+    list will be returned.
 
-        Usage:
-            >>> expand_shortcuts('4:1', True)
-            'span4 offset1'
-            >>> expand_shortcuts('6', True)
-            'span6'
-            >>> expand_shortcuts('8', False)
-            '8'
-        """
+    Arguments:
+        arguments -- a string of comma-separated arguments. Each argument
+            is a space-separated list of CSS class names or aliases
+            to be be replaced with actual class names.
+        # profile -- configuration profile name which affects
+        #     framework-specific parsing options.
+        aliases -- TBD
 
-        def expand(matches):
-            """Expands a single span:offset group."""
-            # TODO: Use aliases to expand class names
-            return "span-offset"
-            # sc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_span_class')
-            # span = sc.format(value=matches.group(1))
+    Usage:
+        >>> parse_row_args("span4 offset4, span4, span2")
+        ['span4 offset4', 'span4', 'span2']
+        >>> parse_row_args("4:1, 4, 3", bootstrap_aliases)
+        ['span4 offset1', 'span4', 'span3']"""
 
-            # oc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_offset_class')
-            # offset = matches.group(3)
-
-            # return (span + ' ' + oc.format(value=offset)) if offset else span
-
-        return Patterns.re_spnoff.sub(expand, arg) if is_bs else arg
-
-    @staticmethod
-    def parse_row_args(arguments, profile=None):
-        """Parses --row-- arguments from a string.
-
-        Each row marker contains a set of parameters defining CSS classes for
-        the corresponding column. This function takes a comma-separated string
-        and returns a list of processed values. If there are no values, an empty
-        list will be returned.
-
-        Arguments:
-            arguments -- comma-separated string of arguments.
-            profile -- configuration profile name which affects
-                framework-specific parsing options.
-
-        Usage:
-            >>> Parsers.parse_row_args("span4 offset4, span4, span2")
-            ['span4 offset4', 'span4', 'span2']
-            >>> Parsers.parse_row_args("4:1, 4, 3", profile='bootstrap')
-            ['span4 offset1', 'span4', 'span3']
-
-        """
-
-        args = str(arguments).split(Parsers.DEFAULT_SEPARATOR)
-        args = [' '.join(arg.split()) for arg in args]
-        if len(args) == 1 and not args[0]:
-            args = []
-        is_bs = (profile == 'bootstrap')
-        return [Parsers.expand_shortcuts(arg, is_bs) for arg in args]
+    args = [' '.join(arg.split()) for arg in str(arguments).split(',')]
+    args = [] if len(args) == 1 and not args[0] else args
+    return [expand_aliases(arg, aliases) for arg in args]
 
 
 class Command:
@@ -299,7 +265,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 # Got  --row [params]-- which means <row [params]><col>
                 row_stack.append(line_num)
                 args = matches.group(1) if matches.groups() else ""
-                rows[line_num] = Parsers.parse_row_args(args, profile)
+                rows[line_num] = parse_row_args(args, profile)
                 r2c[row_stack[-1]] = [line_num]
                 cmds[line_num] = [Command(ROW_OPEN_CMD),
                                   Command(COL_OPEN_CMD)]
@@ -429,9 +395,9 @@ class GridExtension(markdown.Extension):
     def __init__(self, configs):
         self.conf = {}
         self.conf = process_configuration(configs)
-        print('------------')
-        pprint(self.conf)
-        print('------------')
+        # print('------------')
+        # pprint(self.conf)
+        # print('------------')
 
     def extendMarkdown(self, md, md_globals):
         """Initializes markdown extension components."""
