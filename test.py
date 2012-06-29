@@ -117,5 +117,20 @@ class AliasProcessingTest(unittest.TestCase):
             actual_result = mdx_grid.expand_aliases(value, self.conf['aliases'])
             self.assertEqual(result, actual_result)
 
+    def test_parse_row_args(self):
+        test_values = [
+            ['1, 2', ['span1', 'span2']],
+            ['1 2, 3:4', ['span1 span2', 'span3 offset4']],
+            ['1:2, potatoes', ['span1 offset2', 'potatoes']],
+            ['', []],
+            [None, []],
+        ]
+
+        self.assertTrue(self.conf['aliases'])
+
+        for value, result in test_values:
+            actual_result = mdx_grid.parse_row_args(value, self.conf['aliases'])
+            self.assertListEqual(result, actual_result)
+
 if __name__ == "__main__":
     unittest.main()

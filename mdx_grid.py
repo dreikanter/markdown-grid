@@ -200,9 +200,7 @@ def parse_row_args(arguments, aliases=[]):
         arguments -- a string of comma-separated arguments. Each argument
             is a space-separated list of CSS class names or aliases
             to be be replaced with actual class names.
-        # profile -- configuration profile name which affects
-        #     framework-specific parsing options.
-        aliases -- TBD
+        aliases -- replacements list to be applied on the each argument.
 
     Usage:
         >>> parse_row_args("span4 offset4, span4, span2")
@@ -210,7 +208,7 @@ def parse_row_args(arguments, aliases=[]):
         >>> parse_row_args("4:1, 4, 3", bootstrap_aliases)
         ['span4 offset1', 'span4', 'span3']"""
 
-    args = [' '.join(arg.split()) for arg in str(arguments).split(',')]
+    args = [' '.join(arg.split()) for arg in str(arguments or '').split(',')]
     args = [] if len(args) == 1 and not args[0] else args
     return [expand_aliases(arg, aliases) for arg in args]
 
