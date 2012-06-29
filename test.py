@@ -1,6 +1,7 @@
 import unittest
 import mdx_grid
 import random
+from pprint import pprint
 
 
 class Helpers:
@@ -9,29 +10,29 @@ class Helpers:
         return random.randint(min_val, max_val)
 
 
-class GridPreprocessorTest(unittest.TestCase):
+# class GridPreprocessorTest(unittest.TestCase):
 
-    def setUp(self):
-        self.pp = mdx_grid.GridPreprocessor()
-        return
+#     def setUp(self):
+#         self.pp = mdx_grid.GridPreprocessor()
+#         return
 
-    def test_cmd_matches(self):
-        cmd = mdx_grid.Command(mdx_grid.ROW_OPEN_CMD)
-        matches = mdx_grid.Patterns.row_open_cmd.match(str(cmd))
-        self.assertTrue(matches)
+#     def test_cmd_matches(self):
+#         cmd = mdx_grid.Command(mdx_grid.ROW_OPEN_CMD)
+#         matches = mdx_grid.Patterns.row_open_cmd.match(str(cmd))
+#         self.assertTrue(matches)
 
-        cmd = mdx_grid.Command(mdx_grid.COL_OPEN_CMD)
-        cmd.style = Helpers.get_rand()
-        matches = mdx_grid.Patterns.col_open_cmd.match(str(cmd))
-        self.assertTrue(matches)
+#         cmd = mdx_grid.Command(mdx_grid.COL_OPEN_CMD)
+#         cmd.style = Helpers.get_rand()
+#         matches = mdx_grid.Patterns.col_open_cmd.match(str(cmd))
+#         self.assertTrue(matches)
 
-        cmd = str(mdx_grid.Command(mdx_grid.COL_CLOSE_CMD))
-        matches = mdx_grid.Patterns.col_close_cmd.match(str(cmd))
-        self.assertTrue(matches)
+#         cmd = str(mdx_grid.Command(mdx_grid.COL_CLOSE_CMD))
+#         matches = mdx_grid.Patterns.col_close_cmd.match(str(cmd))
+#         self.assertTrue(matches)
 
-        cmd = str(mdx_grid.Command(mdx_grid.ROW_CLOSE_CMD))
-        matches = mdx_grid.Patterns.row_close_cmd.match(str(cmd))
-        self.assertTrue(matches)
+#         cmd = str(mdx_grid.Command(mdx_grid.ROW_CLOSE_CMD))
+#         matches = mdx_grid.Patterns.row_close_cmd.match(str(cmd))
+#         self.assertTrue(matches)
 
 
 class ParsersTest(unittest.TestCase):
@@ -77,6 +78,21 @@ class ParsersTest(unittest.TestCase):
 
             actual_result = mdx_grid.Parsers.parse_row_args(matches.group(1), profile)
             self.assertListEqual(result, actual_result)
+
+
+class GridTagExapnsionTest(unittest.TestCase):
+
+    def setUp(self):
+        self.conf = mdx_grid.GridConf.get_profile(mdx_grid.DEFAULT_PROFILE)
+
+    def conf_param_getter(self, param):
+        if param in self.config:
+            return self.config[param]
+        else:
+            return None
+
+    def test_get_html(self):
+        return
 
 
 if __name__ == "__main__":

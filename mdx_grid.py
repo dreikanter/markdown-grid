@@ -17,10 +17,16 @@ Dependencies:
 * [Python 2.6+](http://python.org)
 * [Markdown 2.1+](http://www.freewisdom.org/projects/python-markdown/)
 
+encoding: utf-8
+
 """
+
+
 
 import re
 import markdown
+
+from pprint import pprint
 
 __author__ = "Alex Musayev"
 __email__ = "alex.musayev@gmail.com"
@@ -41,6 +47,10 @@ GS960_PROFILE = '960gs'
 # if custom configuration is not specified.
 DEFAULT_PROFILE = BOOTSTRAP_PROFILE
 
+# A complete sete of configuration parameters with no values.
+# Used to complement user-defined profiles.
+BLANK_PROFILE = 'blank'
+
 ROW_OPEN_CMD = "row"
 ROW_CLOSE_CMD = "endrow"
 COL_OPEN_CMD = "col"
@@ -58,14 +68,17 @@ class Patterns:
     row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=_flags)
     col_sep = re.compile(r"^\s*--\s*$", flags=_flags)
 
-    # Grid commands for postprocessor
-    row_open_cmd = re.compile(r"^\s*row\s*$", flags=_flags)
-    row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=_flags)
-    col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=_flags)
-    col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=_flags)
+    # # Grid commands for postprocessor
+    # row_open_cmd = re.compile(r"^\s*row\s*$", flags=_flags)
+    # row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=_flags)
+    # col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=_flags)
+    # col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=_flags)
 
     # Grid tag - a container for command sequence
+    # TODO: Use ?: for the second group
     tag = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=_flags)
+
+    command = re.compile(r"(\w+)(?:\((.*)\))?")
 
     # Syntax sugar to specify Bootstrap's span/offset classes
     re_spnoff = re.compile(r"^\s*(\d+)(\s*\:\s*(\d+))?\s*$")
@@ -80,53 +93,101 @@ class GridConf:
         row_close -- Grid row closing
         col_open -- Column opening
         col_close -- Column opening
-        col_span_class -- Column class. {value} marker will be replaced
-            with span/width value from the markup
-        col_offset_class -- Column offset class. {value} marker will be
-            replaced with span/width value from the markup
         default_col_class -- Default column class
-        common_col_class -- Common column class
         col_class_first -- CSS class for the first column in the row
-        col_class_last -- CSS class for the last column in the row"""
-
-    # A complete sete of configuration parameters with no values.
-    # Used to complement user-defined profiles.
-    _blank = 'blank'
+        col_class_last -- CSS class for the last column in the row
+        aliases -- a dictionary of regular expressions used to shorten
+            CSS class names used in row declaration."""
 
     # Name for user-defined profiles.
     _custom = 'custom'
 
     # Predefined configuration profiles.
     _profiles = {
-        _blank: {
+        BLANK_PROFILE: {
+            'profile': '',
             'row_open': '',
             'row_close': '',
             'col_open': '',
             'col_close': '',
-            'col_span_class': '',
-            'col_offset_class': '',
             'default_col_class': '',
-            'common_col_class': '',
             'col_class_first': '',
             'col_class_last': '',
+            'aliases': {},
         },
         BOOTSTRAP_PROFILE: {
+            'profile': BOOTSTRAP_PROFILE,
             'row_open': '<div class="row">',
             'row_close': '</div>',
             'col_open': '<div class="{value}">',
             'col_close': '</div>',
-            'col_span_class': 'span{value}',
-            'col_offset_class': 'offset{value}',
             'default_col_class': 'span1',
-            'common_col_class': '',
-            'col_class_first': '',
-            'col_class_last': '',
+            'aliases': {
+                r'^\s*(\d+)\s*$': r'span\1',
+                r'^\s*(\d+)\s*\:\s*(\d+)\s*$': r'span\1 offset\2',
+            },
         },
         # TODO: ...
-        SKELETON_PROFILE: {},
+        SKELETON_PROFILE: {
+            'profile': SKELETON_PROFILE,
+        },
         # TODO: ...
-        GS960_PROFILE: {},
+        GS960_PROFILE: {
+            'profile': GS960_PROFILE,
+        },
     }
+
+    @staticmethod
+    def process_configuration(source_conf):
+        """Gets a valid configuration profile.
+
+        Arguments:
+            source_conf -- a dictionary received from the consumer during
+                extension configuration."""
+
+        # Complement the source configuration dictionary with undefined
+        # parameters.
+        conf = GridConf.get_conf(BLANK_PROFILE)
+        if not source_conf:
+            conf.update(GridConf.get_conf(DEFAULT_PROFILE))
+        else:
+            conf.update(source_conf)
+
+        # Updates 'profile' parameter value to 'custom' if it's not
+        # defined.
+        if not conf['profile']:
+            conf['profile'] = 'custom'
+
+        # 'Aliases' is a replacements dictionary for <row> marker arguments.
+        # During the configuration processing conf['aliases'] value
+        # will be converted from {regex:replacement} dictionary to a list of
+        # (compiled regex, replacement) tuples to simplify further usage.
+        if not isinstance(conf['aliases'], dict):
+            conf['aliases'] = []
+        elif conf['aliases']:
+            cmpl = lambda a: (re.compile(a), conf['aliases'][a])
+            conf['aliases'] = [cmpl(alias) for alias in conf['aliases']]
+
+        return conf
+
+    @staticmethod
+    def get_conf(profile_name=DEFAULT_PROFILE):
+        """Gets unprocessed configuration profile.
+
+        Arguments:
+            profile_name -- predefined configuration profile name. *_PROFILE
+                constants is strictly recomended to be used here.
+
+        Returns:
+            This function returns a configuration parameters dictionary
+            intended to be used for extension configuration with predefined
+            profiles."""
+
+        try:
+            return GridConf._profiles[profile_name]
+        except Exception as e:
+            message = "Specified configuration profile not exists: '%s'."
+            raise Exception(message % profile_name, e)
 
     @staticmethod
     def get_profile(name=None):
@@ -143,10 +204,21 @@ class GridConf:
 
         try:
             profile = dict(GridConf._profiles[name])
+            print(profile.keys())
+
             profile['profile'] = name
+            profile['aliases'] = GridConf.compile_aliases(profile['aliases'])
             return profile
         except Exception as e:
             raise Exception("Error getting config profile: " + name, e)
+
+    @staticmethod
+    def compile_aliases(aliases):
+        """Compiles the dictionary of regular expressions."""
+        result = []
+        for alias in aliases:
+            result.append((re.compile(alias), aliases[alias]))
+        return result
 
     @staticmethod
     def get_param(profile, param):
@@ -154,9 +226,9 @@ class GridConf:
         for one ofpredefined profiles."""
         try:
             return GridConf._profiles[profile][param]
-        except:
-            raise Exception("Error getting config " \
-                "parameter '%s.%s'" % (profile, param))
+        except Exception as e:
+            message = "Error getting config parameter %s.%s"
+            raise Exception(message % (profile, param), e)
 
     @staticmethod
     def purify(config):
@@ -168,18 +240,18 @@ class GridConf:
 
         Returns:
             The original dictionary data completed with undefined parameters
-            (if any) initialized with _blank values.
+            (if any) initialized with BLANK_PROFILE values.
 
-            If no configuration specified default will be returned instead
-            of a dictionary filled with blank values.
+            # If no configuration specified default will be returned instead
+            # of a dictionary filled with blank values.
 
             In addition to the explicitly specified parameters,
             there always will be 'profile' containing the profile name."""
 
-        if not config:
-            return GridConf.get_profile()
+        # if not config:
+        #     return GridConf.get_profile()
 
-        profile = dict(GridConf._profiles[GridConf._blank])
+        profile = dict(GridConf._profiles[GridConf.BLANK_PROFILE])
         profile.update(dict(config))
         profile['profile'] = GridConf._custom
 
@@ -210,13 +282,15 @@ class Parsers:
 
         def expand(matches):
             """Expands a single span:offset group."""
-            sc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_span_class')
-            span = sc.format(value=matches.group(1))
+            # TODO: Use aliases to expand class names
+            return "span-offset"
+            # sc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_span_class')
+            # span = sc.format(value=matches.group(1))
 
-            oc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_offset_class')
-            offset = matches.group(3)
+            # oc = GridConf.get_param(BOOTSTRAP_PROFILE, 'col_offset_class')
+            # offset = matches.group(3)
 
-            return (span + ' ' + oc.format(value=offset)) if offset else span
+            # return (span + ' ' + oc.format(value=offset)) if offset else span
 
         return Patterns.re_spnoff.sub(expand, arg) if is_bs else arg
 
@@ -261,10 +335,8 @@ class Command:
         return self.value + self.get_params()
 
     def get_params(self):
-        if self.value == COL_OPEN_CMD:
-            return '(%s)' % getattr(self, 'style', '')
-        else:
-            return ''
+        is_col = self.value == COL_OPEN_CMD
+        return ('(%s)' % getattr(self, 'style', '')) if is_col else ''
 
 
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
@@ -359,10 +431,10 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
     def run(self, lines):
         """Main preprocessor method."""
-        profile = self.get_conf('profile')
+        return lines
+        profile = self.conf['profile']
         rows, cmds, r2c, closure = GridPreprocessor.parse(lines, profile)
-        def_style = self.get_conf('default_col_class')
-        cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, def_style)
+        cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, self.conf['default_col_class'])
         result = GridPreprocessor.replace_markers(lines, cmds)
         if closure:
             result.append(GridPreprocessor.get_tag(closure))
@@ -372,50 +444,78 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 class GridPostprocessor(markdown.postprocessors.Postprocessor):
     """Markdown postprocessor."""
 
-    @staticmethod
-    def markup(command):
-        # TODO: Process commands
-        # TODO: Unittest
-        return '<%s>' % command
+    # @staticmethod
+    # def get_html(command, get_conf):
+    #     if command == ROW_OPEN_CMD:
+    #         return get_conf('row_open')
+    #     elif command == ROW_CLOSE_CMD:
+    #         return get_conf('row_close')
+    #     elif command == COL_OPEN_CMD:
+    #         return get_conf('col_open')
+    #     elif command == COL_CLOSE_CMD:
+    #         return get_conf('col_close')
+    #     else:
+    #         raise Exception("Bad command name: '%s'" % str(command))
 
-    @staticmethod
-    def expand_tag(matches):
-        # TODO: Unittest
-        if not matches.groups():
-            return ''
+    # @staticmethod
+    # def expand_cmd(command, get_conf):
+    #     """Converts a single grid command to HTML.
 
-        commands = matches.group(1).split(';')
-        html = ''.join([GridPostprocessor.markup(cmd) for cmd in commands])
-        return '\n%s\n' % html
+    #     Usage:
+    #         >>> expand_cmd("row")
+    #         '<div class="row">'
+    #         >>> expand_cmd("row")
+    #         '<div class="row">'
+
+    #         """
+    #     matches = Patterns.command.match(command)
+    #     if not matches or not matches.groups():
+    #         return ''
+    #     html = GridPreprocessor.get_html(matches.group(1), get_conf)
+    #     if matches.group(2):
+    #         args = matches.group(2).split(',')
+    #         # if no args, add default_col_class
+    #         # if first add 'col_class_first': '',
+    #         # if last add 'col_class_last': '',
+    #         # process each argument using aliases
+    #         # 'aliases': {},
+    #         html.format(value=' '.join(args))
+
+    #     return html
+
+    # @staticmethod
+    # def expand_tag(matches):
+    #     """Converts commands matched from a grid tag to HTML code."""
+    #     if not matches.groups():
+    #         return ''
+
+    #     commands = matches.group(1).split(';')
+    #     html = ''.join([GridPostprocessor.expand_cmd(cmd) for cmd in commands])
+    #     return '\n%s\n' % html
 
     def run(self, text):
-        return Patterns.tag.sub(GridPostprocessor.expand_tag, text)
+        return text
+        # return Patterns.tag.sub(GridPostprocessor.expand_tag, text)
 
 
 class GridExtension(markdown.Extension):
     """Markdown extension class."""
 
     def __init__(self, configs):
-        if isinstance(configs, list):
-            self.config = GridConf.purify(configs)
-        else:
-            self.config = GridConf.get_profile(configs)
+        self.conf = {}
+        self.conf = GridConf.process_configuration(configs)
+        print('------------')
+        pprint(self.conf)
+        print('------------')
 
     def extendMarkdown(self, md, md_globals):
         """Initializes markdown extension components."""
         preprocessor = GridPreprocessor(md)
-        preprocessor.get_conf = self.get_conf
+        preprocessor.conf = self.conf
         md.preprocessors.add('grid', preprocessor, '_begin')
         postprocessor = GridPostprocessor(md)
-        preprocessor.get_conf = self.get_conf
+        preprocessor.conf = self.conf
         md.postprocessors.add('grid', postprocessor, '_end')
-
-    def get_conf(self, key):
-        """Gets configuration parameter value."""
-        if key in self.config:
-            return self.config[key]
-        else:
-            return None
 
 
 def makeExtension(configs=None):
