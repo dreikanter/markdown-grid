@@ -22,7 +22,6 @@ encoding: utf-8
 """
 
 
-
 import re
 import markdown
 
@@ -213,8 +212,41 @@ def parse_row_args(arguments, aliases=[]):
     return [expand_aliases(arg, aliases) for arg in args]
 
 
+def get_tag(commands):
+    """Generates a preprocessor tag from a set of grid commands."""
+    # Extra line break prevents generation of unclosed paragraphs
+    return "\n<!--grid:%s-->" % ';'.join([str(cmd) for cmd in commands])
+
+
+def replace_markers(lines, cmds):
+    """Replace grid markers with tags.
+
+    Arguments:
+        lines -- source markdown text as a list of lines.
+        cmds -- a dictionary mapping line numbers to lists of grid commands.
+
+    Returns:
+        An updated list with grid tags inserted against the markup."""
+
+    for line_num in cmds:
+        lines[line_num] = get_tag(cmds[line_num])
+    return lines
+
+
+def get_closure(row_stack):
+    """Generate the terminating row/column grid tag to complement
+    incompleted markup (if it's incompleted)."""
+    closure = []
+    while row_stack:
+        closure.append(Command(COL_CLOSE_CMD))
+        closure.append(Command(ROW_CLOSE_CMD))
+        row_stack.pop()
+    return closure
+
+
 class Command:
     """Grid command representation."""
+    # TODO: Consider to replace with tuples.
 
     def __init__(self, value):
         self.value = value
@@ -231,9 +263,8 @@ class Command:
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
     """Markdown preprocessor."""
 
-    @staticmethod
-    def parse(lines, profile=None):
-        """Parses mardown source.
+    def run(self, lines):
+        """Main preprocessor method.
 
         Arguments:
             lines -- markdown source as a list of text lines.
@@ -259,43 +290,26 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 
             # Processing grid markers
             matches = Patterns.row_open.match(line)
-            if matches:
-                # Got  --row [params]-- which means <row [params]><col>
+            if matches:  # <row [params]><col>
                 row_stack.append(line_num)
-                args = matches.group(1) if matches.groups() else ""
-                rows[line_num] = parse_row_args(args, profile)
+                args = matches.group(1) if matches.groups() else ''
+                rows[line_num] = parse_row_args(args, self.conf['aliases'])
                 r2c[row_stack[-1]] = [line_num]
                 cmds[line_num] = [Command(ROW_OPEN_CMD),
                                   Command(COL_OPEN_CMD)]
 
-            elif Patterns.row_close.match(line):
-                # Got --end-- which means </col></row>
+            elif Patterns.row_close.match(line):  # </col></row>
                 cmds[line_num] = [Command(COL_CLOSE_CMD),
                                   Command(ROW_CLOSE_CMD)]
                 row_stack.pop()
 
-            elif Patterns.col_sep.match(line):
-                # Got -- which means </col><col>
+            elif Patterns.col_sep.match(line):  # </col><col>
                 r2c[row_stack[-1]].append(line_num)
                 cmds[line_num] = [Command(COL_CLOSE_CMD),
                                   Command(COL_OPEN_CMD)]
 
-            else:
-                # Other lines are irrelevant
-                pass
-
-        closure = []
-        # Closing columns and rows if the stack is still not empty
-        while row_stack:
-            closure.append(Command(COL_CLOSE_CMD))
-            closure.append(Command(ROW_CLOSE_CMD))
-            row_stack.pop()
-
-        return rows, cmds, r2c, closure
-
-    @staticmethod
-    def populate_cmd_params(rows, cmds, r2c, def_style=""):
-        """Returns a line number to grid commands mapping."""
+        # Adding style definition for <col>-s
+        def_style = self.conf['default_col_class']
         for row_line_num in rows:
             styles = rows[row_line_num][::-1]
             for col_line_num in r2c[row_line_num]:
@@ -303,31 +317,10 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                     if cmd.value == COL_OPEN_CMD:
                         cmd.style = styles.pop() if styles else def_style
                         break
-        return cmds
 
-    @staticmethod
-    def get_tag(commands):
-        """Generates a preprocessor tag from a set of grid commands."""
-        # Extra line break prevents generation of unclosed paragraphs
-        return "\n<!--grid:%s-->" % ';'.join([str(cmd) for cmd in commands])
-
-    @staticmethod
-    def replace_markers(lines, cmds):
-        """Replace grid markers with tags."""
-        for line in cmds:
-            lines[line] = GridPreprocessor.get_tag(cmds[line])
-        return lines
-
-    def run(self, lines):
-        """Main preprocessor method."""
-        return lines
-        profile = self.conf['profile']
-        rows, cmds, r2c, closure = GridPreprocessor.parse(lines, profile)
-        cmds = GridPreprocessor.populate_cmd_params(rows, cmds, r2c, self.conf['default_col_class'])
-        result = GridPreprocessor.replace_markers(lines, cmds)
-        if closure:
-            result.append(GridPreprocessor.get_tag(closure))
-        return result
+        result = replace_markers(lines, cmds)
+        closure = get_closure(row_stack)
+        return result + [get_tag(closure)] if closure else result
 
 
 class GridPostprocessor(markdown.postprocessors.Postprocessor):
@@ -393,9 +386,6 @@ class GridExtension(markdown.Extension):
     def __init__(self, configs):
         self.conf = {}
         self.conf = process_configuration(configs)
-        # print('------------')
-        # pprint(self.conf)
-        # print('------------')
 
     def extendMarkdown(self, md, md_globals):
         """Initializes markdown extension components."""
