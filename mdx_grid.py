@@ -102,32 +102,16 @@ ROW_CLOSE_CMD = "endrow"
 COL_OPEN_CMD = "col"
 COL_CLOSE_CMD = "endcol"
 
+RE_FLAGS = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
-class Patterns:
-    """Common regular expressions."""
+# Grid markers
+ROW_OPEN = re.compile(r"^\s*--\s*row\s*([\w,-\:\s]*)\s*--\s*$", flags=RE_FLAGS)
+ROW_CLOSE = re.compile(r"^\s*--\s*end\s*--\s*$", flags=RE_FLAGS)
+COL_SEP = re.compile(r"^\s*--\s*$", flags=RE_FLAGS)
 
-    _flags = re.UNICODE | re.IGNORECASE | re.MULTILINE
-
-    # Grid markers
-    row_open = re.compile(r"^\s*--\s*row\s*([a-z\d,-_\:\s]*)\s*--\s*$",
-                          flags=_flags)
-    row_close = re.compile(r"^\s*--\s*end\s*--\s*$", flags=_flags)
-    col_sep = re.compile(r"^\s*--\s*$", flags=_flags)
-
-    # # Grid commands for postprocessor
-    # row_open_cmd = re.compile(r"^\s*row\s*$", flags=_flags)
-    # row_close_cmd = re.compile(r"^\s*endrow\s*$", flags=_flags)
-    # col_open_cmd = re.compile(r"^\s*col\s*\(([\d\s\:,]+)\)\s*$", flags=_flags)
-    # col_close_cmd = re.compile(r"^\s*endcol\s*$", flags=_flags)
-
-    # Grid tag - a container for command sequence
-    # TODO: Use ?: for the second group
-    tag = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=_flags)
-
-    command = re.compile(r"(\w+)(?:\((.*)\))?")
-
-    # Syntax sugar to specify Bootstrap's span/offset classes
-    re_spnoff = re.compile(r"^\s*(\d+)(\s*\:\s*(\d+))?\s*$")
+# Grid tag - a container for command sequence
+TAG = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=RE_FLAGS)
+COMMAND = re.compile(r"(\w+)(?:\((.*)\))?")
 
 
 def process_configuration(source_conf):
@@ -135,7 +119,11 @@ def process_configuration(source_conf):
 
     Arguments:
         source_conf -- a dictionary received from the consumer during
-            extension configuration."""
+            extension configuration.
+
+    Returns:
+        The get_conf() result for specified profile with precompiled aliases.
+        Custom configurations will be compementeds with undefined parameters."""
 
     # Complement the source configuration dictionary with undefined
     # parameters.
@@ -214,7 +202,7 @@ def parse_row_args(arguments, aliases=[]):
 
 def get_tag(commands):
     """Generates a preprocessor tag from a set of grid commands."""
-    # Extra line break prevents generation of unclosed paragraphs
+    # Extra line break prevents unclosed paragraphs in markdown HTML output
     return "\n<!--grid:%s-->" % ';'.join([str(cmd) for cmd in commands])
 
 
@@ -289,7 +277,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             line = lines[line_num]
 
             # Processing grid markers
-            matches = Patterns.row_open.match(line)
+            matches = ROW_OPEN.match(line)
             if matches:  # <row [params]><col>
                 row_stack.append(line_num)
                 args = matches.group(1) if matches.groups() else ''
@@ -298,12 +286,12 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 cmds[line_num] = [Command(ROW_OPEN_CMD),
                                   Command(COL_OPEN_CMD)]
 
-            elif Patterns.row_close.match(line):  # </col></row>
+            elif ROW_CLOSE.match(line):  # </col></row>
                 cmds[line_num] = [Command(COL_CLOSE_CMD),
                                   Command(ROW_CLOSE_CMD)]
                 row_stack.pop()
 
-            elif Patterns.col_sep.match(line):  # </col><col>
+            elif COL_SEP.match(line):  # </col><col>
                 r2c[row_stack[-1]].append(line_num)
                 cmds[line_num] = [Command(COL_CLOSE_CMD),
                                   Command(COL_OPEN_CMD)]
@@ -350,7 +338,7 @@ class GridPostprocessor(markdown.postprocessors.Postprocessor):
     #         '<div class="row">'
 
     #         """
-    #     matches = Patterns.command.match(command)
+    #     matches = COMMAND.match(command)
     #     if not matches or not matches.groups():
     #         return ''
     #     html = GridPreprocessor.get_html(matches.group(1), get_conf)
@@ -377,7 +365,7 @@ class GridPostprocessor(markdown.postprocessors.Postprocessor):
 
     def run(self, text):
         return text
-        # return Patterns.tag.sub(GridPostprocessor.expand_tag, text)
+        # return TAG.sub(GridPostprocessor.expand_tag, text)
 
 
 class GridExtension(markdown.Extension):
