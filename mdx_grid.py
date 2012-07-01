@@ -1,6 +1,6 @@
 """
-Grid Extension
-===============
+Grid Extension for Python-Markdown
+==================================
 
 A Python-Markdown extension for grid building. It provides minimal
 and straightforward syntax to create multicolumn text layouts.
@@ -8,8 +8,28 @@ and straightforward syntax to create multicolumn text layouts.
 Usage:
 
     >>> import markdown
-    >>> print markdown.markdown('TBD', extensions=['grid'])
-    [TBD]
+    >>> md = markdown.Markdown(extensions=['grid'])
+    >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
+
+    >>> conf = {'grid': mdx_grid.get_conf(mdx_grid.SKELETON_PROFILE)}
+    >>> md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
+    >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
+
+    See `example.py` for more usage examples.
+
+Extension configuration:
+    Each profile is a dictionary containing the following values:
+     - profile -- Configuration profile name
+     - row_open -- Grid row opening
+     - row_close -- Grid row closing
+     - col_open -- Column opening
+     - col_close -- Column opening
+     - default_col_class -- Default column class
+     - col_class_first -- CSS class for the first column in the row
+     - col_class_last -- CSS class for the last column in the row
+     - aliases -- a dictionary of regular expressions used to shorten
+       CSS class names used in row declaration.
+
 
 Copyright 2012 [Alex Musayev](http://alex.musayev.com/)
 
@@ -21,20 +41,19 @@ encoding: utf-8
 
 """
 
-
 import re
 import markdown
 
 from pprint import pprint
 
-__author__ = "Alex Musayev"
-__email__ = "alex.musayev@gmail.com"
-__copyright__ = "Copyright 2012, %s <http://alex.musayev.com>" % __author__
-__license__ = "MIT"
+__author__ = 'Alex Musayev'
+__email__ = 'alex.musayev@gmail.com'
+__copyright__ = 'Copyright 2012, %s <http://alex.musayev.com>' % __author__
+__license__ = 'MIT'
 __version_info__ = (0, 0, 1)
-__version__ = ".".join(map(str, __version_info__))
-__status__ = "Development"
-__url__ = "http://github.com/dreikanter/markdown-grid"
+__version__ = '.'.join(map(str, __version_info__))
+__status__ = 'Development'
+__url__ = 'http://github.com/dreikanter/markdown-grid'
 
 
 # Extension configuration profile names
@@ -50,18 +69,7 @@ DEFAULT_PROFILE = BOOTSTRAP_PROFILE
 # Used to complement user-defined profiles.
 BLANK_PROFILE = 'blank'
 
-# Predefined configuration profiles. Each profile is a dictionary
-# containing the following values:
-#  - profile -- Configuration profile name
-#  - row_open -- Grid row opening
-#  - row_close -- Grid row closing
-#  - col_open -- Column opening
-#  - col_close -- Column opening
-#  - default_col_class -- Default column class
-#  - col_class_first -- CSS class for the first column in the row
-#  - col_class_last -- CSS class for the last column in the row
-#  - aliases -- a dictionary of regular expressions used to shorten
-#    CSS class names used in row declaration.
+# Predefined configuration profiles
 PROFILES = {
     BLANK_PROFILE: {
         'profile': '',
@@ -82,8 +90,8 @@ PROFILES = {
         'col_close': '</div>',
         'default_col_class': 'span1',
         'aliases': [
-            (r'\b(\d+)\:(\d+)\b', r'span\1 offset\2'),
-            (r'\b(\d+)\b', r'span\1'),
+            (r"\b(\d+)\:(\d+)\b", r"span\1 offset\2"),
+            (r"\b(\d+)\b", r"span\1"),
         ],
     },
     # TODO: ...
@@ -97,10 +105,10 @@ PROFILES = {
 }
 
 
-ROW_OPEN_CMD = "row"
-ROW_CLOSE_CMD = "endrow"
-COL_OPEN_CMD = "col"
-COL_CLOSE_CMD = "endcol"
+ROW_OPEN_CMD = 'row'
+ROW_CLOSE_CMD = 'endrow'
+COL_OPEN_CMD = 'col'
+COL_CLOSE_CMD = 'endcol'
 
 RE_FLAGS = re.UNICODE | re.IGNORECASE | re.MULTILINE
 
@@ -111,7 +119,7 @@ COL_SEP = re.compile(r"^\s*--\s*$", flags=RE_FLAGS)
 
 # Grid tag - a container for command sequence
 TAG = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=RE_FLAGS)
-COMMAND = re.compile(r"(\w+)(?:\((.*)\))?")
+COMMAND = re.compile(r"(\w+)(?:\((.*))?", flags=RE_FLAGS)
 
 
 def process_configuration(source_conf):
@@ -314,58 +322,41 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 class GridPostprocessor(markdown.postprocessors.Postprocessor):
     """Markdown postprocessor."""
 
-    # @staticmethod
-    # def get_html(command, get_conf):
-    #     if command == ROW_OPEN_CMD:
-    #         return get_conf('row_open')
-    #     elif command == ROW_CLOSE_CMD:
-    #         return get_conf('row_close')
-    #     elif command == COL_OPEN_CMD:
-    #         return get_conf('col_open')
-    #     elif command == COL_CLOSE_CMD:
-    #         return get_conf('col_close')
-    #     else:
-    #         raise Exception("Bad command name: '%s'" % str(command))
+    def expand_tag(self, commands):
+        """Transforms grid tag to HTML.
 
-    # @staticmethod
-    # def expand_cmd(command, get_conf):
-    #     """Converts a single grid command to HTML.
+        Arguments:
+            commands -- a list of grid commands separated by semicolon."""
+        result = []
 
-    #     Usage:
-    #         >>> expand_cmd("row")
-    #         '<div class="row">'
-    #         >>> expand_cmd("row")
-    #         '<div class="row">'
+        for command in commands.split(';'):
+            matches = COMMAND.match(command)
+            if not matches:
+                continue
+            cmd = matches.groups(1)
+            args = matches.groups(2)
+            html = self.get_html(cmd)
+            html.format(value='args') if args else html
 
-    #         """
-    #     matches = COMMAND.match(command)
-    #     if not matches or not matches.groups():
-    #         return ''
-    #     html = GridPreprocessor.get_html(matches.group(1), get_conf)
-    #     if matches.group(2):
-    #         args = matches.group(2).split(',')
+        return ''.join(result)
+
+    def get_html(self, command):
+        if command == ROW_OPEN_CMD:
+            return self.conf['row_open']
+        elif command == ROW_CLOSE_CMD:
+            return self.conf['row_close']
+        elif command == COL_OPEN_CMD:
+            return self.conf['col_open']
+        elif command == COL_CLOSE_CMD:
+            return self.conf['col_close']
+        else:
+            raise Exception("Bad command name: '%s'" % str(command))
     #         # if no args, add default_col_class
     #         # if first add 'col_class_first': '',
     #         # if last add 'col_class_last': '',
-    #         # process each argument using aliases
-    #         # 'aliases': {},
-    #         html.format(value=' '.join(args))
-
-    #     return html
-
-    # @staticmethod
-    # def expand_tag(matches):
-    #     """Converts commands matched from a grid tag to HTML code."""
-    #     if not matches.groups():
-    #         return ''
-
-    #     commands = matches.group(1).split(';')
-    #     html = ''.join([GridPostprocessor.expand_cmd(cmd) for cmd in commands])
-    #     return '\n%s\n' % html
 
     def run(self, text):
-        return text
-        # return TAG.sub(GridPostprocessor.expand_tag, text)
+        return TAG.sub(self.expand_tag, text)
 
 
 class GridExtension(markdown.Extension):

@@ -101,14 +101,14 @@ class AliasProcessingTest(unittest.TestCase):
 
     def test_expand_aliases(self):
         test_values = [
-            ['1', 'span1'],
-            ['1 2', 'span1 span2'],
-            ['1:2 3', 'span1 offset2 span3'],
-            ['1:2 3:4', 'span1 offset2 span3 offset4'],
-            ['potatoes potatoes', 'potatoes potatoes'],
-            ['potatoes 1 2:3', 'potatoes span1 span2 offset3'],
-            ['potatoes1 potatoes1:2 2:3potatoes',
-             'potatoes1 potatoes1:span2 span2:3potatoes'],
+            ('1', 'span1'),
+            ('1 2', 'span1 span2'),
+            ('1:2 3', 'span1 offset2 span3'),
+            ('1:2 3:4', 'span1 offset2 span3 offset4'),
+            ('potatoes potatoes', 'potatoes potatoes'),
+            ('potatoes 1 2:3', 'potatoes span1 span2 offset3'),
+            ('potatoes1 potatoes1:2 2:3potatoes',
+             'potatoes1 potatoes1:span2 span2:3potatoes'),
         ]
 
         self.assertTrue(self.conf['aliases'])
@@ -119,11 +119,11 @@ class AliasProcessingTest(unittest.TestCase):
 
     def test_parse_row_args(self):
         test_values = [
-            ['1, 2', ['span1', 'span2']],
-            ['1 2, 3:4', ['span1 span2', 'span3 offset4']],
-            ['1:2, potatoes', ['span1 offset2', 'potatoes']],
-            ['', []],
-            [None, []],
+            ('1, 2', ['span1', 'span2']),
+            ('1 2, 3:4', ['span1 span2', 'span3 offset4']),
+            ('1:2, potatoes', ['span1 offset2', 'potatoes']),
+            ('', []),
+            (None, []),
         ]
 
         self.assertTrue(self.conf['aliases'])
@@ -131,6 +131,23 @@ class AliasProcessingTest(unittest.TestCase):
         for value, result in test_values:
             actual_result = mdx_grid.parse_row_args(value, self.conf['aliases'])
             self.assertListEqual(result, actual_result)
+
+
+class PostprocessorTest(unittest.TestCase):
+    def setUp(self):
+        return
+
+    def test_expand_tag(self):
+        test_values = [
+            ('row;col(span4)', ''),
+            ('endcol;col(span2 offset1)', ''),
+            ('endcol;endrow', ''),
+            ('', ''),
+        ]
+
+        for value, result in test_values:
+            mdx_grid.expand_tag(value)
+
 
 if __name__ == "__main__":
     unittest.main()
