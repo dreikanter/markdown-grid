@@ -44,8 +44,6 @@ encoding: utf-8
 import re
 import markdown
 
-from pprint import pprint
-
 __author__ = 'Alex Musayev'
 __email__ = 'alex.musayev@gmail.com'
 __copyright__ = 'Copyright 2012, %s <http://alex.musayev.com>' % __author__
@@ -104,6 +102,24 @@ PROFILES = {
         'first_col': 'alpha',
         'last_col': 'omega',
         'aliases': [
+            # TODO: Consider to use replacement functions here
+            (r"\:1\b", r"offset-by-one"),
+            (r"\:2\b", r"offset-by-two"),
+            (r"\:3\b", r"offset-by-three"),
+            (r"\:4\b", r"offset-by-four"),
+            (r"\:5\b", r"offset-by-five"),
+            (r"\:6\b", r"offset-by-six"),
+            (r"\:7\b", r"offset-by-seven"),
+            (r"\:8\b", r"offset-by-eight"),
+            (r"\:9\b", r"offset-by-nine"),
+            (r"\:10\b", r"offset-by-ten"),
+            (r"\:11\b", r"offset-by-eleven"),
+            (r"\:12\b", r"offset-by-twelve"),
+            (r"\:13\b", r"offset-by-thirteen"),
+            (r"\:14\b", r"offset-by-fourteen"),
+            (r"\:15\b", r"offset-by-fifteen"),
+            (r"\b1\/3\b", r"one-third"),
+            (r"\b2\/3\b", r"two-thirds"),
             (r"\b1\b", r"one"),
             (r"\b2\b", r"two"),
             (r"\b3\b", r"three"),
@@ -120,23 +136,6 @@ PROFILES = {
             (r"\b14\b", r"fourteen"),
             (r"\b15\b", r"fifteen"),
             (r"\b16\b", r"sixteen"),
-            (r"\b1\/3\b", r"one-third"),
-            (r"\b2\/3\b", r"two-thirds"),
-            (r"\:1\b", r"offset-by-one"),
-            (r"\:2\b", r"offset-by-two"),
-            (r"\:3\b", r"offset-by-three"),
-            (r"\:4\b", r"offset-by-four"),
-            (r"\:5\b", r"offset-by-five"),
-            (r"\:6\b", r"offset-by-six"),
-            (r"\:7\b", r"offset-by-seven"),
-            (r"\:8\b", r"offset-by-eight"),
-            (r"\:9\b", r"offset-by-nine"),
-            (r"\:10\b", r"offset-by-ten"),
-            (r"\:11\b", r"offset-by-eleven"),
-            (r"\:12\b", r"offset-by-twelve"),
-            (r"\:13\b", r"offset-by-thirteen"),
-            (r"\:14\b", r"offset-by-fourteen"),
-            (r"\:15\b", r"offset-by-fifteen"),
         ],
     },
     GS960_PROFILE: {
@@ -394,7 +393,6 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                     if cmd.value == COL_OPEN_CMD:
                         cmd.style = styles.pop() if styles else def_style
                         if cmd.xstyle:
-                            # print("'%s'" % cmd.xstyle)
                             cmd.xstyle = self.conf[cmd.xstyle]
                         break
 
