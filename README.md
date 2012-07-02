@@ -116,7 +116,7 @@ Bootstrap):
 ## TODO
 
 * ~~Preprocessor~~
-* Postprocessor
+* ~~Postprocessor~~
 * ~~Configuration~~
 * Packaging
 * ~~Readme: processing example~~
@@ -125,8 +125,8 @@ Bootstrap):
 * ~~Add CSS class short aliases to configuration profiles~~
 * ~~Implement Bootstrap row arguments syntax through aliases~~
 * ~~Drop unnecessary configuration params after aliases implementation~~
-* Skeleton profile
-* 960GS profile
+* ~~Skeleton profile~~
+* ~~960GS profile~~
 * ~~Incomplete markup processing~~
 * Postprocessor test coverage
 * Module docstring
@@ -134,3 +134,5 @@ Bootstrap):
 * ~~Fix 'Nones' in command parameters~~
 * README: Update examples
 * README: Add a screenshot
+* Example for Skeleton
+* Example for 960GS
