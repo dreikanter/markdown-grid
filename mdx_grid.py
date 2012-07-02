@@ -24,9 +24,9 @@ Extension configuration:
      - row_close -- Grid row closing
      - col_open -- Column opening
      - col_close -- Column opening
-     - default_col_class -- Default column class
-     - col_class_first -- CSS class for the first column in the row
-     - col_class_last -- CSS class for the last column in the row
+     - default_col -- Default column class
+     - first_col -- CSS class for the first column in the row
+     - last_col -- CSS class for the last column in the row
      - aliases -- a dictionary of regular expressions used to shorten
        CSS class names used in row declaration.
 
@@ -77,9 +77,9 @@ PROFILES = {
         'row_close': '',
         'col_open': '',
         'col_close': '',
-        'default_col_class': '',
-        'col_class_first': '',
-        'col_class_last': '',
+        'default_col': '',
+        'first_col': 'first',
+        'last_col': 'last',
         'aliases': [],
     },
     BOOTSTRAP_PROFILE: {
@@ -88,7 +88,7 @@ PROFILES = {
         'row_close': '</div>',
         'col_open': '<div class="{value}">',
         'col_close': '</div>',
-        'default_col_class': 'span1',
+        'default_col': 'span1',
         'aliases': [
             (r"\b(\d+)\:(\d+)\b", r"span\1 offset\2"),
             (r"\b(\d+)\b", r"span\1"),
@@ -119,7 +119,7 @@ COL_SEP = re.compile(r"^\s*--\s*$", flags=RE_FLAGS)
 
 # Grid tag - a container for command sequence
 TAG = re.compile(r"\s*<!--grid\:(.*)-->\s*", flags=RE_FLAGS)
-COMMAND = re.compile(r"(\w+)(?:\((.*))?", flags=RE_FLAGS)
+COMMAND = re.compile(r"(\w+)(?:\((.*)\))?", flags=RE_FLAGS)
 
 
 def process_configuration(source_conf):
@@ -241,19 +241,33 @@ def get_closure(row_stack):
 
 
 class Command:
-    """Grid command representation."""
-    # TODO: Consider to replace with tuples.
+    """Grid command representation.
 
-    def __init__(self, value):
+    Attributes:
+        value -- defines the command type.
+        style -- CSS class name(s) for HTML elements generated for the command.
+        xstyle -- optional extra style(s) for the HTML elements. Used to keep
+            additional CSS class names for the utmost columns in a row."""
+
+    def __init__(self, value, xstyle=None):
         self.value = value
+        xstyle = str(xstyle).lower() if xstyle else ''
+        self.xstyle = xstyle
 
     def __str__(self):
         """Generates text representation for a grid command."""
         return self.value + self.get_params()
 
     def get_params(self):
-        is_col = self.value == COL_OPEN_CMD
-        return ('(%s)' % getattr(self, 'style', '')) if is_col else ''
+        """Retruns a formatted parameters string for command
+        instances string representation."""
+        if self.value == COL_OPEN_CMD:
+            style = getattr(self, 'style', '')
+            xstyle = getattr(self, 'xstyle', '')
+            return '(%s)' % (style + (xstyle and (' ' + xstyle)))
+
+        else:
+            return ''
 
 
 class GridPreprocessor(markdown.preprocessors.Preprocessor):
@@ -273,7 +287,7 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
             1. Rows mapping: row marker line => [column CSS classes]
                (each item could contain a set of space-separated class names)
             2. Grid commands mapping: marker line => [grid commands]
-            3. Row to column mapping: row marker line => [column lines]
+            3. Row to column mapping: row marker line => [column opening lines]
             4. Closure commands - an additional set of """
 
         row_stack = []  # Rows stack. Each item contains row marker line number
@@ -292,11 +306,19 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 rows[line_num] = parse_row_args(args, self.conf['aliases'])
                 r2c[row_stack[-1]] = [line_num]
                 cmds[line_num] = [Command(ROW_OPEN_CMD),
-                                  Command(COL_OPEN_CMD)]
+                                  Command(COL_OPEN_CMD, xstyle='first_col')]
 
             elif ROW_CLOSE.match(line):  # </col></row>
                 cmds[line_num] = [Command(COL_CLOSE_CMD),
                                   Command(ROW_CLOSE_CMD)]
+
+                # Mark the last column in the row
+                ln = r2c[row_stack[-1]][-1]
+                for cmd in cmds[ln]:
+                    if cmd.value == COL_OPEN_CMD:
+                        cmd.xstyle = 'last_col'
+                        break
+
                 row_stack.pop()
 
             elif COL_SEP.match(line):  # </col><col>
@@ -305,13 +327,19 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                                   Command(COL_OPEN_CMD)]
 
         # Adding style definition for <col>-s
-        def_style = self.conf['default_col_class']
-        for row_line_num in rows:
-            styles = rows[row_line_num][::-1]
-            for col_line_num in r2c[row_line_num]:
-                for cmd in cmds[col_line_num]:
+        def_style = self.conf['default_col']
+
+        for row_line in rows:
+            styles = rows[row_line][::-1]
+            for col_line in r2c[row_line]:
+
+                for cmd in cmds[col_line]:
+                    # Affect the first COL_OPEN_CMD in line
                     if cmd.value == COL_OPEN_CMD:
                         cmd.style = styles.pop() if styles else def_style
+                        if cmd.xstyle:
+                            # print("'%s'" % cmd.xstyle)
+                            cmd.xstyle = self.conf[cmd.xstyle]
                         break
 
         result = replace_markers(lines, cmds)
@@ -322,41 +350,40 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
 class GridPostprocessor(markdown.postprocessors.Postprocessor):
     """Markdown postprocessor."""
 
-    def expand_tag(self, commands):
-        """Transforms grid tag to HTML.
+    def expand_match(self, matches):
+        """Expands matched grid tag to HTML.
 
         Arguments:
             commands -- a list of grid commands separated by semicolon."""
-        result = []
+        commands = matches.group(1).split(';')
+        return ''.join([self.expand_cmd(cmd) for cmd in commands])
 
-        for command in commands.split(';'):
-            matches = COMMAND.match(command)
-            if not matches:
-                continue
-            cmd = matches.groups(1)
-            args = matches.groups(2)
-            html = self.get_html(cmd)
-            html.format(value='args') if args else html
+    def expand_cmd(self, command):
+        matches = COMMAND.match(command)
+        if not matches:
+            return ''
 
-        return ''.join(result)
+        cmd_name = matches.group(1)
 
-    def get_html(self, command):
-        if command == ROW_OPEN_CMD:
+        if cmd_name == ROW_OPEN_CMD:
             return self.conf['row_open']
-        elif command == ROW_CLOSE_CMD:
+
+        elif cmd_name == ROW_CLOSE_CMD:
             return self.conf['row_close']
-        elif command == COL_OPEN_CMD:
-            return self.conf['col_open']
-        elif command == COL_CLOSE_CMD:
+
+        elif cmd_name == COL_OPEN_CMD:
+            html = self.conf['col_open']
+            classes = matches.group(2) if len(matches.groups()) > 1 else ''
+            return html.format(value=classes)
+
+        elif cmd_name == COL_CLOSE_CMD:
             return self.conf['col_close']
+
         else:
-            raise Exception("Bad command name: '%s'" % str(command))
-    #         # if no args, add default_col_class
-    #         # if first add 'col_class_first': '',
-    #         # if last add 'col_class_last': '',
+            raise Exception("Unknown command: '%s'" % str(cmd_name))
 
     def run(self, text):
-        return TAG.sub(self.expand_tag, text)
+        return TAG.sub(self.expand_match, text)
 
 
 class GridExtension(markdown.Extension):
@@ -371,8 +398,9 @@ class GridExtension(markdown.Extension):
         preprocessor = GridPreprocessor(md)
         preprocessor.conf = self.conf
         md.preprocessors.add('grid', preprocessor, '_begin')
+
         postprocessor = GridPostprocessor(md)
-        preprocessor.conf = self.conf
+        postprocessor.conf = self.conf
         md.postprocessors.add('grid', postprocessor, '_end')
 
 
