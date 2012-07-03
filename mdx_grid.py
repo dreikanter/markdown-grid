@@ -44,6 +44,10 @@ encoding: utf-8
 import re
 import markdown
 
+from pprint import pprint
+
+print("mdx_grid.py -----------------")
+
 __author__ = 'Alex Musayev'
 __email__ = 'alex.musayev@gmail.com'
 __copyright__ = 'Copyright 2012, %s <http://alex.musayev.com>' % __author__
@@ -359,27 +363,42 @@ class GridPreprocessor(markdown.preprocessors.Preprocessor):
                 row_stack.append(line_num)
                 args = matches.group(1) if matches.groups() else ''
                 rows[line_num] = parse_row_args(args, self.conf['aliases'])
-                r2c[row_stack[-1]] = [line_num]
-                cmds[line_num] = [Command(ROW_OPEN_CMD),
-                                  Command(COL_OPEN_CMD, xstyle='first_col')]
+                try:
+                    r2c[row_stack[-1]] = [line_num]
+                    cmds[line_num] = [Command(ROW_OPEN_CMD),
+                                      Command(COL_OPEN_CMD, xstyle='first_col')]
+                except:
+                    # Ignoring incorrect marker sequences
+                    # TODO: Consider to add debug logging here
+                    pass
 
             elif ROW_CLOSE.match(line):  # </col></row>
                 cmds[line_num] = [Command(COL_CLOSE_CMD),
                                   Command(ROW_CLOSE_CMD)]
 
                 # Mark the last column in the row
-                ln = r2c[row_stack[-1]][-1]
-                for cmd in cmds[ln]:
-                    if cmd.value == COL_OPEN_CMD:
-                        cmd.xstyle = 'last_col'
-                        break
-
-                row_stack.pop()
+                try:
+                    ln = r2c[row_stack[-1]][-1]
+                    for cmd in cmds[ln]:
+                        if cmd.value == COL_OPEN_CMD:
+                            cmd.xstyle = 'last_col'
+                            break
+                    row_stack.pop()
+                except:
+                    # Ignoring incorrect marker sequences
+                    # TODO: Consider to add debug logging here
+                    pass
 
             elif COL_SEP.match(line):  # </col><col>
-                r2c[row_stack[-1]].append(line_num)
-                cmds[line_num] = [Command(COL_CLOSE_CMD),
-                                  Command(COL_OPEN_CMD)]
+                # if len(row_stack) and row_stack[-1] in r2c:
+                try:
+                    r2c[row_stack[-1]].append(line_num)
+                    cmds[line_num] = [Command(COL_CLOSE_CMD),
+                                      Command(COL_OPEN_CMD)]
+                except:
+                    # Ignoring incorrect marker sequences
+                    # TODO: Consider to add debug logging here
+                    pass
 
         # Adding style definition for <col>-s
         def_style = self.conf['default_col']

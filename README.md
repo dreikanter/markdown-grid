@@ -136,3 +136,4 @@ Bootstrap):
 * README: Add a screenshot
 * Example for Skeleton
 * Example for 960GS
+* Add tests for incorrect marker sequences (should be ignored by parser)
