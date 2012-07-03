@@ -44,15 +44,12 @@ encoding: utf-8
 import re
 import markdown
 
-from pprint import pprint
-
-print("mdx_grid.py -----------------")
 
 __author__ = 'Alex Musayev'
 __email__ = 'alex.musayev@gmail.com'
 __copyright__ = 'Copyright 2012, %s <http://alex.musayev.com>' % __author__
 __license__ = 'MIT'
-__version_info__ = (0, 0, 1)
+__version_info__ = (0, 1, 0)
 __version__ = '.'.join(map(str, __version_info__))
 __status__ = 'Development'
 __url__ = 'http://github.com/dreikanter/markdown-grid'
