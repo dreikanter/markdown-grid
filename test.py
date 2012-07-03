@@ -1,6 +1,7 @@
 import unittest
 import mdx_grid
 import random
+import markdown
 from pprint import pprint
 
 
@@ -133,20 +134,31 @@ class AliasProcessingTest(unittest.TestCase):
             self.assertListEqual(result, actual_result)
 
 
-class PostprocessorTest(unittest.TestCase):
+# class PostprocessorTest(unittest.TestCase):
+#     def setUp(self):
+#         return
+
+#     def test_expand_cmd(self):
+#         test_values = [
+#             ('row;col(span4)', ''),
+#             ('endcol;col(span2 offset1)', ''),
+#             ('endcol;endrow', ''),
+#             ('', ''),
+#         ]
+
+#         md = markdown.Markdown()
+#         pp = mdx_grid.GridPostprocessor(md)
+
+#         for value, result in test_values:
+#             pp.expand_cmd(value)
+
+
+class MarkdownTest(unittest.TestCase):
     def setUp(self):
-        return
+        self.md = markdown.Markdown(extensions=['grid'])
 
-    def test_expand_tag(self):
-        test_values = [
-            ('row;col(span4)', ''),
-            ('endcol;col(span2 offset1)', ''),
-            ('endcol;endrow', ''),
-            ('', ''),
-        ]
-
-        for value, result in test_values:
-            mdx_grid.expand_tag(value)
+    def test_convertion(self):
+        self.assertEqual(self.md.convert(''), '')
 
 
 if __name__ == "__main__":
