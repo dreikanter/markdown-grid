@@ -16,10 +16,10 @@ a threee-column page fragment:
 ```markdown
 -- row 5, 2, 5 --
 First column contains couple of paragraphs. Lorem ipsum dolor sit amet,
-consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore 
+consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore
 et dolore magna aliqua.
 
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi 
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi
 ut aliquip ex ea commodo consequat.
 ---
 Some images in the middle column:
@@ -60,10 +60,10 @@ Here is preprocessor output for the initial example:
 <!--mdtb:row,col4-->
 
 First column contains couple of paragraphs. Lorem ipsum dolor sit amet,
-consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore 
+consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore
 et dolore magna aliqua.
 
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi 
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi
 ut aliquip ex ea commodo consequat.
 
 <!--mdtb:endcol,col4-->
@@ -85,7 +85,7 @@ in culpa qui officia deserunt mollit anim id est laborum.
 <!--mdtb:endcol,endrow-->
 ```
 
-The final result (as it was mentioned already it is based on Twitter 
+The final result (as it was mentioned already it is based on Twitter
 Bootstrap):
 
 ```html
@@ -107,33 +107,30 @@ Bootstrap):
 		Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
 		dolore eu fugiat nulla pariatur.</p>
 		<p><a href="http://excepteur.org">Excepteur</a> sint occaecat
-		cupidatat non proident, sunt in culpa qui officia deserunt mollit 
+		cupidatat non proident, sunt in culpa qui officia deserunt mollit
 		anim id est laborum.</p>
 	</div>
 </div>
 ```
 
-## TODO
+## Installation
 
-* ~~Preprocessor~~
-* ~~Postprocessor~~
-* ~~Configuration~~
-* Packaging
-* ~~Readme: processing example~~
-* ~~Example: configuration for Skeleton~~
-* ~~Example for incomplete markup~~
-* ~~Add CSS class short aliases to configuration profiles~~
-* ~~Implement Bootstrap row arguments syntax through aliases~~
-* ~~Drop unnecessary configuration params after aliases implementation~~
-* ~~Skeleton profile~~
-* ~~960GS profile~~
-* ~~Incomplete markup processing~~
-* Postprocessor test coverage
-* Module docstring
-* Python 3 compatibility
-* ~~Fix 'Nones' in command parameters~~
-* README: Update examples
-* README: Add a screenshot
-* Example for Skeleton
-* Example for 960GS
-* Add tests for incorrect marker sequences (should be ignored by parser)
+A command to install markdown-grid:
+
+	pip install -e git+git://github.com/dreikanter/markdown-grid#egg=mdx_grid
+
+Including markdown-grid to a package:
+
+	setup(
+	    name='example',
+	    ...
+	    install_requires=[
+	        'markdown',
+	        'mdx_grid',
+	        ...
+	    ],
+	    dependency_links=[
+	        'https://github.com/dreikanter/markdown-grid/tarball/master#egg=mdx_grid'
+	    ],
+	)
+
