@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-from distutils.core import setup
-
-sys.path.append('mdx_grid')
+from setuptools import setup
 import mdx_grid
 
 setup(
@@ -18,5 +16,7 @@ setup(
     package_dir={'mdx_grid': '.'},
     py_modules=['mdx_grid'],
     platforms=['any'],
-    requires=['markdown', 're'],
+    install_requires=[
+        'markdown',
+    ],
 )
