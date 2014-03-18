@@ -15,6 +15,10 @@ Usage:
     >>> md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
     >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
 
+    >>> conf = {'grid': {'profile_name' : 'bootstrap3'}}
+    >>> md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
+    >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
+
     See `example.py` for more usage examples.
 
 Extension configuration:
@@ -57,6 +61,7 @@ __url__ = 'http://github.com/dreikanter/markdown-grid'
 
 # Extension configuration profile names
 BOOTSTRAP_PROFILE = 'bootstrap'
+BOOTSTRAP3_PROFILE = 'bootstrap3'
 SKELETON_PROFILE = 'skeleton'
 GS960_PROFILE = '960gs'
 
@@ -91,6 +96,18 @@ PROFILES = {
         'aliases': [
             (r"\b(\d+)\:(\d+)\b", r"span\1 offset\2"),
             (r"\b(\d+)\b", r"span\1"),
+        ],
+    },
+    BOOTSTRAP3_PROFILE: {
+        'profile': BOOTSTRAP3_PROFILE,
+        'row_open': '<div class="row">',
+        'row_close': '</div>',
+        'col_open': '<div class="{value}">',
+        'col_close': '</div>',
+        'default_col': 'col-sm-1',
+        'aliases': [
+            (r"\b(\d+)\:(\d+)\b", r"col-sm-\1 col-sm-offset-\2"),
+            (r"\b(\d+)\b", r"col-sm-\1"),
         ],
     },
     SKELETON_PROFILE: {
@@ -196,6 +213,11 @@ def process_configuration(source_conf):
         conf.update(get_conf(DEFAULT_PROFILE))
     else:
         conf.update(source_conf)
+
+    # If there is 'profile_name' key, read rest of the configuration
+    # with get_conf
+    if "profile_name" in conf:
+        conf.update(get_conf(conf["profile_name"]))
 
     # Updates 'profile' parameter value to 'custom' if it's not
     # defined.
