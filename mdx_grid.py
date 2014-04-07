@@ -7,17 +7,17 @@ and straightforward syntax to create multicolumn text layouts.
 
 Usage:
 
-    >>> import markdown
-    >>> md = markdown.Markdown(extensions=['grid'])
-    >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
+    import markdown
+    md = markdown.Markdown(extensions=['grid'])
+    md.convertFile('hello.md', output='hello.html', encoding='utf8')
 
-    >>> conf = {'grid': mdx_grid.get_conf(mdx_grid.SKELETON_PROFILE)}
-    >>> md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
-    >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
+    conf = {'grid': mdx_grid.get_conf(mdx_grid.SKELETON_PROFILE)}
+    md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
+    md.convertFile('hello.md', output='hello.html', encoding='utf8')
 
-    >>> conf = {'grid': {'profile_name' : 'bootstrap3'}}
-    >>> md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
-    >>> md.convertFile('hello.md', output='hello.html', encoding='utf8')
+    conf = {'grid': {'profile_name' : 'bootstrap3'}}
+    md = markdown.Markdown(extensions=['grid'], extension_configs=conf)
+    md.convertFile('hello.md', output='hello.html', encoding='utf8')
 
     See `example.py` for more usage examples.
 
@@ -34,14 +34,7 @@ Extension configuration:
      - aliases -- a dictionary of regular expressions used to shorten
        CSS class names used in row declaration.
 
-
-Copyright 2012 [Alex Musayev](http://alex.musayev.com/)
-
-Dependencies:
-* [Python 2.6+](http://python.org)
-* [Markdown 2.1+](http://www.freewisdom.org/projects/python-markdown/)
-
-encoding: utf-8
+Copyright 2012-2014 [Alex Musayev](http://alex.musayev.com)
 
 """
 
@@ -53,7 +46,7 @@ __author__ = 'Alex Musayev'
 __email__ = 'alex.musayev@gmail.com'
 __copyright__ = 'Copyright 2014, %s <http://alex.musayev.com>' % __author__
 __license__ = 'MIT'
-__version_info__ = (0, 2, 1)
+__version_info__ = (0, 2, 2)
 __version__ = '.'.join(map(str, __version_info__))
 __status__ = 'Development'
 __url__ = 'http://github.com/dreikanter/markdown-grid'
@@ -273,13 +266,7 @@ def parse_row_args(arguments, aliases=[]):
         arguments -- a string of comma-separated arguments. Each argument
             is a space-separated list of CSS class names or aliases
             to be be replaced with actual class names.
-        aliases -- replacements list to be applied on the each argument.
-
-    Usage:
-        >>> parse_row_args("span4 offset4, span4, span2")
-        ['span4 offset4', 'span4', 'span2']
-        >>> parse_row_args("4:1, 4, 3", bootstrap_aliases)
-        ['span4 offset1', 'span4', 'span3']"""
+        aliases -- replacements list to be applied on the each argument."""
 
     args = [' '.join(arg.split()) for arg in str(arguments or '').split(',')]
     args = [] if len(args) == 1 and not args[0] else args
